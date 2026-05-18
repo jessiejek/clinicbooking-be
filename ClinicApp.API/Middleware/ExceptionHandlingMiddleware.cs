@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using ClinicApp.API.Contracts.Common;
+using ClinicApp.Application.Common.Exceptions;
 using FluentValidation;
 
 namespace ClinicApp.API.Middleware;
@@ -28,6 +29,10 @@ public sealed class ExceptionHandlingMiddleware
         try
         {
             await _next(context);
+        }
+        catch (ApiException ex)
+        {
+            await WriteErrorAsync(context, ex.StatusCode, ex.Message, ex);
         }
         catch (ValidationException ex)
         {
