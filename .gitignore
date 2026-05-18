@@ -1,0 +1,39 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET / SDK local state
+.dotnet-home/
+.userprofile/
+.nuget/
+NuGet/
+artifacts/
+
+# Logs
+*.log
+build.log
+restore.log
+restore3.log
+restore4.log
+restore.stdout.log
+restore.stderr.log
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Rider
+.idea/
+
+# Node / frontend caches if added later
+node_modules/
+dist/
+coverage/
