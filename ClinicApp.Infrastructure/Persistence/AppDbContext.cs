@@ -1,4 +1,5 @@
 using ClinicApp.Domain.Entities.Authentication;
+using ClinicApp.Domain.Entities.Clinic;
 using ClinicApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -15,6 +16,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
+    public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -61,6 +63,40 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ClinicSettings>(entity =>
+        {
+            entity.ToTable("ClinicSettings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ClinicName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.LogoUrl).HasMaxLength(500);
+            entity.Property(x => x.PrimaryColor).IsRequired().HasMaxLength(10).HasDefaultValue("#5D3E8E");
+            entity.Property(x => x.SecondaryColor).IsRequired().HasMaxLength(10).HasDefaultValue("#2563EB");
+            entity.Property(x => x.Address).HasMaxLength(300);
+            entity.Property(x => x.Phone).HasMaxLength(20);
+            entity.Property(x => x.ContactEmail).HasMaxLength(200);
+            entity.Property(x => x.FacebookUrl).HasMaxLength(300);
+            entity.Property(x => x.InstagramUrl).HasMaxLength(300);
+            entity.Property(x => x.OperatingHoursJson).IsRequired().HasMaxLength(4000).HasDefaultValue("{}");
+            entity.Property(x => x.CancellationDeadlineHours).IsRequired().HasDefaultValue(24);
+            entity.Property(x => x.PatientPortalEnabled).IsRequired().HasDefaultValue(true);
+            entity.Property(x => x.VaccinationReminderEnabled).IsRequired().HasDefaultValue(true);
+            entity.Property(x => x.FollowUpReminderEnabled).IsRequired().HasDefaultValue(true);
+            entity.Property(x => x.IsPayAtClinicMode).IsRequired();
+            entity.Property(x => x.PayAtClinicNoShowWindowMinutes).IsRequired().HasDefaultValue(60);
+            entity.Property(x => x.PrivacyPolicyText).HasMaxLength(4000);
+            entity.Property(x => x.ConsentVersion).IsRequired().HasMaxLength(10).HasDefaultValue("v1.0");
+            entity.Property(x => x.GcashAccountName).HasMaxLength(100);
+            entity.Property(x => x.GcashNumber).HasMaxLength(20);
+            entity.Property(x => x.GcashQrImageUrl).HasMaxLength(500);
+            entity.Property(x => x.MayaAccountName).HasMaxLength(100);
+            entity.Property(x => x.MayaNumber).HasMaxLength(20);
+            entity.Property(x => x.MayaQrImageUrl).HasMaxLength(500);
+            entity.Property(x => x.BankName).HasMaxLength(100);
+            entity.Property(x => x.BankAccountName).HasMaxLength(100);
+            entity.Property(x => x.BankAccountNumber).HasMaxLength(50);
+            entity.Property(x => x.UpdatedAt).IsRequired();
         });
     }
 }

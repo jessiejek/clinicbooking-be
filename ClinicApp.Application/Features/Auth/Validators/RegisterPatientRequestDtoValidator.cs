@@ -7,7 +7,9 @@ public sealed class RegisterPatientRequestDtoValidator : AbstractValidator<Regis
 {
     public RegisterPatientRequestDtoValidator()
     {
-        RuleFor(x => x.FullName).NotEmpty().MaximumLength(150);
+        RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.MiddleName).MaximumLength(100).When(x => !string.IsNullOrWhiteSpace(x.MiddleName));
+        RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
         RuleFor(x => x.AvatarUrl).MaximumLength(500).When(x => !string.IsNullOrWhiteSpace(x.AvatarUrl));

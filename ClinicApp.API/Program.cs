@@ -1,10 +1,12 @@
 using System.Text;
 using ClinicApp.API.DependencyInjection;
 using ClinicApp.API.Middleware;
+using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Options;
 using ClinicApp.Application.DependencyInjection;
 using ClinicApp.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 
@@ -57,11 +59,15 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Persistence.AppDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
+    await dbContext.Database.MigrateAsync();
     await ClinicApp.Infrastructure.Persistence.AuthSchemaBootstrapper.EnsureApplicationUserColumnsAsync(dbContext, CancellationToken.None);
     await ClinicApp.Infrastructure.Persistence.AuthSchemaBootstrapper.EnsureCustomAuthTablesAsync(dbContext, CancellationToken.None);
 
     var seeder = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Authentication.IIdentitySeeder>();
     await seeder.SeedAsync(CancellationToken.None);
+
+    var clinicSettingsService = scope.ServiceProvider.GetRequiredService<IClinicSettingsService>();
+    await clinicSettingsService.GetAsync(CancellationToken.None);
 }
 
 app.UseCors("LocalDev");

@@ -78,7 +78,8 @@ public sealed class AuthService : IAuthService
             UserName = request.Email,
             Email = request.Email,
             EmailConfirmed = true,
-            FullName = request.FullName,
+            FullName = string.Join(" ", new[] { request.FirstName.Trim(), request.MiddleName?.Trim(), request.LastName.Trim() }
+                .Where(p => !string.IsNullOrWhiteSpace(p))),
             Role = "Patient",
             AvatarUrl = request.AvatarUrl,
             AuthProvider = "Local",
