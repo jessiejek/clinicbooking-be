@@ -5,6 +5,7 @@ using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Options;
 using ClinicApp.Application.DependencyInjection;
 using ClinicApp.Infrastructure.DependencyInjection;
+using ClinicApp.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -65,6 +66,9 @@ using (var scope = app.Services.CreateScope())
 
     var seeder = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Authentication.IIdentitySeeder>();
     await seeder.SeedAsync(CancellationToken.None);
+
+    var clinicSeeder = scope.ServiceProvider.GetRequiredService<IClinicSeeder>();
+    await clinicSeeder.SeedAsync(CancellationToken.None);
 
     var clinicSettingsService = scope.ServiceProvider.GetRequiredService<IClinicSettingsService>();
     await clinicSettingsService.GetAsync(CancellationToken.None);

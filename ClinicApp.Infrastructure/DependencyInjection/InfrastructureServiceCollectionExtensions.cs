@@ -1,8 +1,11 @@
 using ClinicApp.Application.Common.Interfaces.Authentication;
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Infrastructure.Authentication;
+using ClinicApp.Infrastructure.Doctors;
 using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Persistence;
+using ClinicApp.Infrastructure.Seeding;
+using ClinicApp.Infrastructure.Services;
 using ClinicApp.Infrastructure.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +45,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicSettingsService, ClinicSettingsService>();
         services.AddScoped<IIdentitySeeder, IdentitySeeder>();
+        services.AddScoped<IClinicDoctorsService, DoctorsService>();
+        services.AddScoped<IClinicServicesService, ClinicServicesService>();
+        services.AddScoped<IClinicSeeder, ClinicSeeder>();
 
         return services;
     }

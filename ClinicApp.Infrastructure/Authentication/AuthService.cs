@@ -302,7 +302,7 @@ public sealed class AuthService : IAuthService
                 UserName = email,
                 Email = email,
                 EmailConfirmed = true,
-                FullName = fullName,
+                FullName = fullName ?? email,
                 Role = "Patient",
                 AvatarUrl = avatarUrl,
                 AuthProvider = provider,

@@ -14,6 +14,12 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     {
     }
 
+    public DbSet<Doctor> Doctors => Set<Doctor>();
+    public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();
+    public DbSet<DoctorBlockedDate> DoctorBlockedDates => Set<DoctorBlockedDate>();
+    public DbSet<DoctorDayStatus> DoctorDayStatuses => Set<DoctorDayStatus>();
+    public DbSet<Service> Services => Set<Service>();
+    public DbSet<DoctorService> DoctorServices => Set<DoctorService>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
@@ -30,6 +36,98 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.AuthProvider).HasMaxLength(20);
             entity.Property(x => x.ProviderUserId).HasMaxLength(100);
             entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        builder.Entity<Doctor>(entity =>
+        {
+            entity.ToTable("Doctors");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.FullName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Specialization).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.ProfilePhotoUrl).HasMaxLength(500);
+            entity.Property(x => x.LicenseNumber).HasMaxLength(50);
+            entity.Property(x => x.PtrNumber).HasMaxLength(50);
+            entity.Property(x => x.S2Number).HasMaxLength(50);
+            entity.Property(x => x.ConsultationFee).HasPrecision(10, 2);
+            entity.Property(x => x.SlotDurationMinutes).HasDefaultValue(30);
+            entity.Property(x => x.SlotCapacity).HasDefaultValue(1);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Active");
+            entity.Property(x => x.AverageRating).HasPrecision(3, 2);
+            entity.Property(x => x.ReviewCount).HasDefaultValue(0);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.UserId);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<DoctorSchedule>(entity =>
+        {
+            entity.ToTable("DoctorSchedules");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DayOfWeek).IsRequired().HasMaxLength(10);
+            entity.Property(x => x.StartTime).HasColumnType("time");
+            entity.Property(x => x.EndTime).HasColumnType("time");
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasOne<Doctor>()
+                .WithMany(x => x.Schedules)
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DoctorBlockedDate>(entity =>
+        {
+            entity.ToTable("DoctorBlockedDates");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Reason).HasMaxLength(300);
+            entity.Property(x => x.BlockedDate).HasColumnType("date");
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DoctorDayStatus>(entity =>
+        {
+            entity.ToTable("DoctorDayStatuses");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Date).HasColumnType("date");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(30);
+            entity.HasIndex(x => new { x.DoctorId, x.Date }).IsUnique();
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Service>(entity =>
+        {
+            entity.ToTable("Services");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Category).IsRequired().HasMaxLength(30);
+            entity.Property(x => x.Price).HasPrecision(10, 2).HasDefaultValue(0m);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+            entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        builder.Entity<DoctorService>(entity =>
+        {
+            entity.ToTable("DoctorServices");
+            entity.HasKey(x => new { x.DoctorId, x.ServiceId });
+            entity.HasIndex(x => x.ServiceId);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Service>()
+                .WithMany()
+                .HasForeignKey(x => x.ServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<RefreshToken>(entity =>
