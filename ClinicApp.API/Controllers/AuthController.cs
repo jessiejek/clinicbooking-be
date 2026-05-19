@@ -52,11 +52,10 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]
     [HttpPost("facebook")]
     public async Task<ActionResult<AuthResponseDto>> Facebook(
-        [FromBody] SocialLoginRequestDto request,
+        [FromBody] FacebookLoginRequestDto request,
         CancellationToken cancellationToken)
     {
-        EnsureProvider(request.Provider, "Facebook");
-        var response = await _authService.SocialLoginAsync(request, GetClientIp(), cancellationToken);
+        var response = await _authService.FacebookLoginAsync(request, GetClientIp(), cancellationToken);
         return Ok(response);
     }
 

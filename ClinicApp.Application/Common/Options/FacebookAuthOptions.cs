@@ -6,5 +6,5 @@ public sealed class FacebookAuthOptions
 
     public string AppId { get; init; } = string.Empty;
     public string AppSecret { get; init; } = string.Empty;
-    public string GraphApiVersion { get; init; } = "v19.0";
+    public string GraphApiVersion { get; init; } = "v25.0";
 }

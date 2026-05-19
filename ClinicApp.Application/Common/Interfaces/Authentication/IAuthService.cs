@@ -8,6 +8,7 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task<AuthResponseDto> RegisterPatientAsync(RegisterPatientRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task<AuthResponseDto> SocialLoginAsync(SocialLoginRequestDto request, string? ipAddress, CancellationToken cancellationToken);
+    Task<AuthResponseDto> FacebookLoginAsync(FacebookLoginRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task LogoutAsync(RefreshTokenRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task<AuthUserDto> GetCurrentUserAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);

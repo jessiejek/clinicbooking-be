@@ -105,18 +105,22 @@ public sealed class AuthService : IAuthService
         var socialProfile = provider switch
         {
             "Google" => await ValidateGoogleLoginAsync(request.IdToken, cancellationToken),
-            "Facebook" => await ValidateFacebookLoginAsync(request.AccessToken, cancellationToken),
+            "Facebook" => await ValidateFacebookLoginAsync(request.AccessToken, null, cancellationToken),
             _ => throw new ApiException(HttpStatusCode.BadRequest, "Provider must be Google or Facebook.")
         };
 
-        var user = await LinkOrCreateSocialUserAsync(provider, socialProfile, cancellationToken);
-        if (!user.IsActive)
+        return await CompleteSocialLoginAsync(provider, socialProfile, ipAddress, cancellationToken);
+    }
+
+    public async Task<AuthResponseDto> FacebookLoginAsync(FacebookLoginRequestDto request, string? ipAddress, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Provider) && !request.Provider.Equals("Facebook", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ApiException(HttpStatusCode.Unauthorized, "This account is inactive.");
+            throw new ApiException(HttpStatusCode.BadRequest, "Provider must be Facebook.");
         }
 
-        await UpsertExternalLoginAccountAsync(user, provider, socialProfile, cancellationToken);
-        return await CreateAuthResponseAsync(user, ipAddress, cancellationToken);
+        var socialProfile = await ValidateFacebookLoginAsync(request.AccessToken, request.UserId, cancellationToken);
+        return await CompleteSocialLoginAsync("Facebook", socialProfile, ipAddress, cancellationToken);
     }
 
     public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string? ipAddress, CancellationToken cancellationToken)
@@ -315,7 +319,7 @@ public sealed class AuthService : IAuthService
                     throw new ApiException(HttpStatusCode.BadRequest, string.Join("; ", createResult.Errors.Select(x => x.Description)));
                 }
             }
-            catch (DbUpdateException e)
+            catch (DbUpdateException)
             {
                 var existingUser = await _userManager.FindByEmailAsync(email)
                     ?? await _userManager.FindByNameAsync(email);
@@ -333,7 +337,7 @@ public sealed class AuthService : IAuthService
                     return existingUser;
                 }
 
-                throw new ApiException(HttpStatusCode.InternalServerError, "Google login could not create a new user record. Please check the database schema for the AspNetUsers table.");
+                throw new ApiException(HttpStatusCode.InternalServerError, "Social login could not create a new user record. Please check the database schema for the AspNetUsers table.");
             }
 
             await EnsurePatientRoleAsync(user);
@@ -355,12 +359,32 @@ public sealed class AuthService : IAuthService
         return user;
     }
 
+    private async Task<AuthResponseDto> CompleteSocialLoginAsync(
+        string provider,
+        SocialProfile socialProfile,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var user = await LinkOrCreateSocialUserAsync(provider, socialProfile, cancellationToken);
+        if (!user.IsActive)
+        {
+            throw new ApiException(HttpStatusCode.Unauthorized, "This account is inactive.");
+        }
+
+        await UpsertExternalLoginAccountAsync(user, provider, socialProfile, cancellationToken);
+        return await CreateAuthResponseAsync(user, ipAddress, cancellationToken);
+    }
+
     private async Task UpsertExternalLoginAccountAsync(
         ApplicationUser user,
         string provider,
         SocialProfile socialProfile,
         CancellationToken cancellationToken)
     {
+        var providerEmail = socialProfile.Email.Trim();
+        var providerDisplayName = TruncateString(socialProfile.DisplayName, 200) ?? socialProfile.DisplayName.Trim();
+        var providerPhotoUrl = TruncateString(socialProfile.PhotoUrl, 500);
+
         var existing = await _dbContext.ExternalLoginAccounts
             .FirstOrDefaultAsync(x => x.UserId == user.Id && x.Provider == provider, cancellationToken);
 
@@ -372,9 +396,9 @@ public sealed class AuthService : IAuthService
                 UserId = user.Id,
                 Provider = provider,
                 ProviderUserId = socialProfile.ProviderUserId,
-                ProviderEmail = socialProfile.Email,
-                ProviderDisplayName = socialProfile.DisplayName,
-                ProviderPhotoUrl = socialProfile.PhotoUrl,
+                ProviderEmail = providerEmail,
+                ProviderDisplayName = providerDisplayName,
+                ProviderPhotoUrl = providerPhotoUrl,
                 CreatedAt = DateTime.UtcNow,
                 LastLoginAt = DateTime.UtcNow
             });
@@ -382,9 +406,9 @@ public sealed class AuthService : IAuthService
         else
         {
             existing.ProviderUserId = socialProfile.ProviderUserId;
-            existing.ProviderEmail = socialProfile.Email;
-            existing.ProviderDisplayName = socialProfile.DisplayName;
-            existing.ProviderPhotoUrl = socialProfile.PhotoUrl;
+            existing.ProviderEmail = providerEmail;
+            existing.ProviderDisplayName = providerDisplayName;
+            existing.ProviderPhotoUrl = providerPhotoUrl;
             existing.LastLoginAt = DateTime.UtcNow;
         }
 
@@ -456,6 +480,16 @@ public sealed class AuthService : IAuthService
         return nameParts.Length > 0
             ? string.Join(" ", nameParts)
             : fallbackEmail;
+    }
+
+    private static string ResolveFacebookDisplayName(string? name, string fallbackEmail)
+    {
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name.Trim();
+        }
+
+        return fallbackEmail;
     }
 
     private static string? TruncateString(string? value, int maxLength)
@@ -591,7 +625,7 @@ public sealed class AuthService : IAuthService
         }
     }
 
-    private async Task<SocialProfile> ValidateFacebookLoginAsync(string? accessToken, CancellationToken cancellationToken)
+    private async Task<SocialProfile> ValidateFacebookLoginAsync(string? accessToken, string? expectedUserId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(accessToken))
         {
@@ -600,7 +634,7 @@ public sealed class AuthService : IAuthService
 
         if (string.IsNullOrWhiteSpace(_facebookAuthOptions.AppId) || string.IsNullOrWhiteSpace(_facebookAuthOptions.AppSecret))
         {
-            throw new ApiException(HttpStatusCode.InternalServerError, "Facebook login is not configured.");
+            throw new ApiException(HttpStatusCode.InternalServerError, "Facebook login configuration is missing. Set Facebook:AppId and Facebook:AppSecret before starting the app.");
         }
 
         using var client = new HttpClient();
@@ -614,11 +648,11 @@ public sealed class AuthService : IAuthService
         }
         catch (HttpRequestException)
         {
-            throw new ApiException(HttpStatusCode.Unauthorized, "Facebook token is invalid.");
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, "Facebook sign-in validation is temporarily unavailable.");
         }
         catch (System.Text.Json.JsonException)
         {
-            throw new ApiException(HttpStatusCode.Unauthorized, "Facebook token is invalid.");
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, "Facebook sign-in validation is temporarily unavailable.");
         }
 
         if (debugToken?.Data is null
@@ -629,6 +663,12 @@ public sealed class AuthService : IAuthService
             throw new ApiException(HttpStatusCode.Unauthorized, "Facebook token is invalid.");
         }
 
+        if (!string.IsNullOrWhiteSpace(expectedUserId)
+            && !debugToken.Data.UserId.Equals(expectedUserId, StringComparison.Ordinal))
+        {
+            throw new ApiException(HttpStatusCode.Unauthorized, "Facebook user ID does not match the access token.");
+        }
+
         var profileUrl = $"https://graph.facebook.com/{_facebookAuthOptions.GraphApiVersion}/me?fields=id,name,email,picture.width(200).height(200)&access_token={Uri.EscapeDataString(accessToken)}";
         FacebookProfileResponse? profile;
         try
@@ -637,25 +677,28 @@ public sealed class AuthService : IAuthService
         }
         catch (HttpRequestException)
         {
-            throw new ApiException(HttpStatusCode.Unauthorized, "Facebook profile could not be read.");
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, "Facebook sign-in validation is temporarily unavailable.");
         }
         catch (System.Text.Json.JsonException)
+        {
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, "Facebook sign-in validation is temporarily unavailable.");
+        }
+
+        if (profile is null
+            || string.IsNullOrWhiteSpace(profile.Id))
         {
             throw new ApiException(HttpStatusCode.Unauthorized, "Facebook profile could not be read.");
         }
 
-        if (profile is null
-            || string.IsNullOrWhiteSpace(profile.Id)
-            || string.IsNullOrWhiteSpace(profile.Email)
-            || string.IsNullOrWhiteSpace(profile.Name))
+        if (string.IsNullOrWhiteSpace(profile.Email))
         {
-            throw new ApiException(HttpStatusCode.Unauthorized, "Facebook profile could not be read.");
+            throw new ApiException(HttpStatusCode.BadRequest, "Facebook account did not provide an email address. Please use Google Login or email/password.");
         }
 
         return new SocialProfile(
             ProviderUserId: profile.Id,
             Email: profile.Email,
-            DisplayName: profile.Name,
+            DisplayName: ResolveFacebookDisplayName(profile.Name, profile.Email),
             PhotoUrl: profile.Picture?.Data?.Url,
             EmailVerified: true);
     }
