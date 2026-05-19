@@ -70,7 +70,7 @@ public sealed class ExceptionHandlingMiddleware
                     group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
         }
 
-        var details = _environment.IsDevelopment() ? exception.Message : null;
+        var details = _environment.IsDevelopment() ? exception.ToString() : null;
         var response = new ApiErrorResponseDto(
             StatusCode: context.Response.StatusCode,
             Message: message,

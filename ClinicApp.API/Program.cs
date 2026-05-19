@@ -11,6 +11,12 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services
+    .AddOptions<GoogleAuthOptions>()
+    .Bind(builder.Configuration.GetSection(GoogleAuthOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ClientId), "Google:ClientId is required for Google login.")
+    .ValidateOnStart();
+builder.Services.Configure<FacebookAuthOptions>(builder.Configuration.GetSection(FacebookAuthOptions.SectionName));
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -51,6 +57,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Persistence.AppDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
+    await ClinicApp.Infrastructure.Persistence.AuthSchemaBootstrapper.EnsureApplicationUserColumnsAsync(dbContext, CancellationToken.None);
+    await ClinicApp.Infrastructure.Persistence.AuthSchemaBootstrapper.EnsureCustomAuthTablesAsync(dbContext, CancellationToken.None);
 
     var seeder = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Authentication.IIdentitySeeder>();
     await seeder.SeedAsync(CancellationToken.None);

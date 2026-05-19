@@ -1,7 +1,9 @@
 using ClinicApp.Application.Common.Interfaces.Authentication;
+using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace ClinicApp.API.Controllers;
 
@@ -33,6 +35,28 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var response = await _authService.RegisterPatientAsync(request, GetClientIp(), cancellationToken);
+        return Ok(response);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponseDto>> Google(
+        [FromBody] SocialLoginRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        EnsureProvider(request.Provider, "Google");
+        var response = await _authService.SocialLoginAsync(request, GetClientIp(), cancellationToken);
+        return Ok(response);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("facebook")]
+    public async Task<ActionResult<AuthResponseDto>> Facebook(
+        [FromBody] SocialLoginRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        EnsureProvider(request.Provider, "Facebook");
+        var response = await _authService.SocialLoginAsync(request, GetClientIp(), cancellationToken);
         return Ok(response);
     }
 
@@ -77,5 +101,13 @@ public sealed class AuthController : ControllerBase
     private string? GetClientIp()
     {
         return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private static void EnsureProvider(string provider, string expectedProvider)
+    {
+        if (string.IsNullOrWhiteSpace(provider) || !provider.Equals(expectedProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, $"Provider must be {expectedProvider}.");
+        }
     }
 }
