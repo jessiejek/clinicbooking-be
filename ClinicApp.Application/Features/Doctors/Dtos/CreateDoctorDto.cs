@@ -12,4 +12,5 @@ public sealed record CreateDoctorDto(
     int SlotCapacity,
     int? DailyPatientLimit,
     string DoctorEmail,
-    string TempPassword);
+    string TempPassword,
+    IReadOnlyCollection<Guid>? ServiceIds = null);

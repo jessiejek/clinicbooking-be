@@ -21,6 +21,8 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<Service> Services => Set<Service>();
     public DbSet<DoctorService> DoctorServices => Set<DoctorService>();
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
@@ -166,6 +168,102 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Booking>(entity =>
+        {
+            entity.ToTable("Bookings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.DoctorId).IsRequired();
+            entity.Property(x => x.ServiceId).IsRequired();
+            entity.Property(x => x.AppointmentDate).HasColumnType("date");
+            entity.Property(x => x.SlotStartTime).HasColumnType("time");
+            entity.Property(x => x.SlotEndTime).HasColumnType("time");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+            entity.Property(x => x.PaymentStatus).IsRequired().HasMaxLength(20).HasDefaultValue("Unpaid");
+            entity.Property(x => x.PaymentMode).IsRequired().HasMaxLength(20).HasDefaultValue("Online");
+            entity.Property(x => x.QueueNumber);
+            entity.Property(x => x.TotalFee).HasPrecision(10, 2);
+            entity.Property(x => x.ConsultationFeeSnapshot).HasPrecision(10, 2);
+            entity.Property(x => x.ServiceFeeSnapshot).HasPrecision(10, 2);
+            entity.Property(x => x.IsWalkIn).HasDefaultValue(false);
+            entity.Property(x => x.ProofType).HasMaxLength(20);
+            entity.Property(x => x.ProofValue).HasMaxLength(500);
+            entity.Property(x => x.ProofSubmittedAt).HasColumnType("datetime2");
+            entity.Property(x => x.CancellationReason).HasMaxLength(500);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.RescheduledFromBookingId);
+            entity.Property(x => x.ReceiptUrl).HasMaxLength(500);
+            entity.Property(x => x.OrNumber).HasMaxLength(50);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasIndex(x => x.ServiceId);
+            entity.HasIndex(x => new { x.DoctorId, x.AppointmentDate });
+            entity.HasIndex(x => x.QueueNumber);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.PaymentStatus);
+            entity.HasIndex(x => x.RescheduledFromBookingId);
+            entity.HasOne(x => x.Patient)
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Doctor)
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Service)
+                .WithMany()
+                .HasForeignKey(x => x.ServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RescheduledFromBooking)
+                .WithMany()
+                .HasForeignKey(x => x.RescheduledFromBookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("Payments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.BookingId).IsRequired();
+            entity.Property(x => x.Amount).HasPrecision(10, 2);
+            entity.Property(x => x.PaymentMethod).IsRequired().HasMaxLength(20);
+            entity.Property(x => x.ReferenceNumber).HasMaxLength(100);
+            entity.Property(x => x.ProofImageUrl).HasMaxLength(500);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Unpaid");
+            entity.Property(x => x.OrNumber).HasMaxLength(50);
+            entity.Property(x => x.VerifiedByUserId).HasMaxLength(450);
+            entity.Property(x => x.VerifiedAt).HasColumnType("datetime2");
+            entity.Property(x => x.WaivedByUserId).HasMaxLength(450);
+            entity.Property(x => x.WaivedAt).HasColumnType("datetime2");
+            entity.Property(x => x.WaivedReason).HasMaxLength(500);
+            entity.Property(x => x.RefundedByUserId).HasMaxLength(450);
+            entity.Property(x => x.RefundedAt).HasColumnType("datetime2");
+            entity.Property(x => x.RefundReason).HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.BookingId).IsUnique();
+            entity.HasIndex(x => x.VerifiedByUserId);
+            entity.HasIndex(x => x.WaivedByUserId);
+            entity.HasIndex(x => x.RefundedByUserId);
+            entity.HasOne(x => x.Booking)
+                .WithOne(x => x.Payment)
+                .HasForeignKey<Payment>(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.VerifiedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.WaivedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.RefundedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

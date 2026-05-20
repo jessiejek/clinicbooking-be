@@ -1,6 +1,7 @@
 using ClinicApp.Application.Common.Interfaces.Authentication;
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Infrastructure.Authentication;
+using ClinicApp.Infrastructure.Bookings;
 using ClinicApp.Infrastructure.Doctors;
 using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Patients;
@@ -47,7 +48,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IClinicSettingsService, ClinicSettingsService>();
         services.AddScoped<IIdentitySeeder, IdentitySeeder>();
         services.AddScoped<IClinicDoctorsService, DoctorsService>();
+        services.AddScoped<IClinicBookingsService, BookingsService>();
+        services.AddScoped<IClinicPaymentsService, BookingsService>();
         services.AddScoped<IPatientSeeder, PatientSeeder>();
+        services.AddScoped<IBookingSeeder, BookingSeeder>();
         services.AddScoped<IClinicPatientsService, PatientsService>();
         services.AddScoped<IClinicServicesService, ClinicServicesService>();
         services.AddScoped<IClinicSeeder, ClinicSeeder>();

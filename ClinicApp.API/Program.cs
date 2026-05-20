@@ -24,6 +24,17 @@ builder.Services.Configure<FacebookAuthOptions>(builder.Configuration.GetSection
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApiServices();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalDev", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:8100",
+                "https://localhost:8100")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -48,6 +59,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseCors("LocalDev");
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -73,11 +85,13 @@ using (var scope = app.Services.CreateScope())
     var clinicSeeder = scope.ServiceProvider.GetRequiredService<IClinicSeeder>();
     await clinicSeeder.SeedAsync(CancellationToken.None);
 
+    var bookingSeeder = scope.ServiceProvider.GetRequiredService<IBookingSeeder>();
+    await bookingSeeder.SeedAsync(CancellationToken.None);
+
     var clinicSettingsService = scope.ServiceProvider.GetRequiredService<IClinicSettingsService>();
     await clinicSettingsService.GetAsync(CancellationToken.None);
 }
 
-app.UseCors("LocalDev");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/", () => Results.Redirect("/swagger"));

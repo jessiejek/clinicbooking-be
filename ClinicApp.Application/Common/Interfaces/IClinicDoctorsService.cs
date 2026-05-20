@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ClinicApp.Application.Features.Doctors.Dtos;
+using ClinicApp.Application.Features.Services.Dtos;
 
 namespace ClinicApp.Application.Common.Interfaces;
 
@@ -16,6 +17,10 @@ public interface IClinicDoctorsService
     Task<DoctorDetailDto> CreateDoctorAsync(CreateDoctorDto dto, CancellationToken cancellationToken);
 
     Task<DoctorDetailDto> UpdateDoctorAsync(Guid id, UpdateDoctorDto dto, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ServiceDto>> GetDoctorServicesAsync(Guid doctorId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ServiceDto>> UpdateDoctorServicesAsync(Guid doctorId, UpdateDoctorServicesDto dto, CancellationToken cancellationToken);
 
     Task<DoctorDetailDto> UpdateMyDoctorAsync(ClaimsPrincipal principal, UpdateDoctorDto dto, CancellationToken cancellationToken);
 

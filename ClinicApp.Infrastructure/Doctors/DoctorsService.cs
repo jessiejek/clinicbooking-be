@@ -16,6 +16,14 @@ namespace ClinicApp.Infrastructure.Doctors;
 public sealed class DoctorsService : IClinicDoctorsService
 {
     private const string DoctorRole = "Doctor";
+    private static readonly string[] OccupyingBookingStatuses =
+    {
+        "Pending",
+        "ProofSubmitted",
+        "Confirmed",
+        "OnHold",
+        "Rescheduled"
+    };
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -99,6 +107,20 @@ public sealed class DoctorsService : IClinicDoctorsService
             throw new ApiException(HttpStatusCode.Conflict, "Email address is already registered.");
         }
 
+        var serviceIds = dto.ServiceIds?.Distinct().ToList() ?? [];
+        if (serviceIds.Count == 0)
+        {
+            var defaultServiceId = await GetDefaultDoctorServiceIdAsync(cancellationToken);
+            if (!defaultServiceId.HasValue)
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, "At least one active service is required.");
+            }
+
+            serviceIds.Add(defaultServiceId.Value);
+        }
+
+        await EnsureServicesExistAsync(serviceIds, cancellationToken);
+
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -158,6 +180,17 @@ public sealed class DoctorsService : IClinicDoctorsService
 
             _dbContext.Doctors.Add(doctor);
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            if (serviceIds.Count > 0)
+            {
+                _dbContext.DoctorServices.AddRange(serviceIds.Select(serviceId => new DoctorService
+                {
+                    DoctorId = doctor.Id,
+                    ServiceId = serviceId
+                }));
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
 
             return await GetDoctorDetailAsync(doctor.Id, includeInactive: true, cancellationToken);
@@ -203,6 +236,82 @@ public sealed class DoctorsService : IClinicDoctorsService
             await transaction.CommitAsync(cancellationToken);
 
             return await GetDoctorDetailAsync(doctor.Id, includeInactive: true, cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<IReadOnlyList<ServiceDto>> GetDoctorServicesAsync(Guid doctorId, CancellationToken cancellationToken)
+    {
+        var doctor = await _dbContext.Doctors
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == doctorId, cancellationToken);
+
+        if (doctor is null || !IsActiveDoctor(doctor))
+        {
+            throw new ApiException(HttpStatusCode.NotFound, "Doctor was not found.");
+        }
+
+        return await LoadDoctorServicesAsync(doctorId, includeInactive: false, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ServiceDto>> UpdateDoctorServicesAsync(Guid doctorId, UpdateDoctorServicesDto dto, CancellationToken cancellationToken)
+    {
+        var doctor = await _dbContext.Doctors.SingleOrDefaultAsync(x => x.Id == doctorId, cancellationToken);
+        if (doctor is null)
+        {
+            throw new ApiException(HttpStatusCode.NotFound, "Doctor was not found.");
+        }
+
+        var serviceIds = dto.ServiceIds?.Distinct().ToList() ?? [];
+        if (serviceIds.Count == 0)
+        {
+            var currentServiceExists = await _dbContext.DoctorServices
+                .AsNoTracking()
+                .AnyAsync(x => x.DoctorId == doctor.Id, cancellationToken);
+
+            if (currentServiceExists)
+            {
+                return await LoadDoctorServicesAsync(doctorId, includeInactive: false, cancellationToken);
+            }
+
+            var defaultServiceId = await GetDefaultDoctorServiceIdAsync(cancellationToken);
+            if (!defaultServiceId.HasValue)
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, "At least one active service is required.");
+            }
+
+            serviceIds.Add(defaultServiceId.Value);
+        }
+
+        await EnsureServicesExistAsync(serviceIds, cancellationToken);
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var existingLinks = await _dbContext.DoctorServices
+                .Where(x => x.DoctorId == doctor.Id)
+                .ToListAsync(cancellationToken);
+
+            _dbContext.DoctorServices.RemoveRange(existingLinks);
+
+            if (serviceIds.Count > 0)
+            {
+                _dbContext.DoctorServices.AddRange(serviceIds.Select(serviceId => new DoctorService
+                {
+                    DoctorId = doctor.Id,
+                    ServiceId = serviceId
+                }));
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return await LoadDoctorServicesAsync(doctorId, includeInactive: false, cancellationToken);
         }
         catch
         {
@@ -479,16 +588,19 @@ public sealed class DoctorsService : IClinicDoctorsService
             .ThenBy(x => x.End)
             .ToList();
 
-        var totalConfirmedAndPending = 0;
-        var dailyLimitReached = doctor.DailyPatientLimit.HasValue && totalConfirmedAndPending >= doctor.DailyPatientLimit.Value;
-        var bookedCount = 0;
+        var activeBookings = await _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.DoctorId == doctorId && x.AppointmentDate == date && OccupyingBookingStatuses.Contains(x.Status))
+            .ToListAsync(cancellationToken);
+
+        var dailyLimitReached = doctor.DailyPatientLimit.HasValue && activeBookings.Count >= doctor.DailyPatientLimit.Value;
 
         return confirmedSlots
             .Select(slot => new AvailableSlotDto(
                 FormatTime(slot.Start),
                 FormatTime(slot.End),
-                !dailyLimitReached && bookedCount < doctor.SlotCapacity,
-                bookedCount,
+                !dailyLimitReached && activeBookings.Count(x => x.SlotStartTime == slot.Start && x.SlotEndTime == slot.End) < doctor.SlotCapacity,
+                activeBookings.Count(x => x.SlotStartTime == slot.Start && x.SlotEndTime == slot.End),
                 doctor.SlotCapacity))
             .ToList();
     }
@@ -528,7 +640,7 @@ public sealed class DoctorsService : IClinicDoctorsService
             query = query.Where(x => x.IsActive);
         }
 
-        return await query
+        var services = await query
             .OrderBy(x => x.Name)
             .Select(x => new ServiceDto(
                 x.Id,
@@ -539,6 +651,69 @@ public sealed class DoctorsService : IClinicDoctorsService
                 x.EstimatedDurationMinutes,
                 x.IsActive))
             .ToListAsync(cancellationToken);
+
+        if (!includeInactive && services.Count == 0)
+        {
+            await EnsureDoctorHasDefaultServiceAsync(doctorId, cancellationToken);
+
+            services = await query
+                .OrderBy(x => x.Name)
+                .Select(x => new ServiceDto(
+                    x.Id,
+                    x.Name,
+                    x.Description,
+                    x.Category,
+                    x.Price,
+                    x.EstimatedDurationMinutes,
+                    x.IsActive))
+                .ToListAsync(cancellationToken);
+        }
+
+        return services;
+    }
+
+    private async Task EnsureDoctorHasDefaultServiceAsync(Guid doctorId, CancellationToken cancellationToken)
+    {
+        var doctor = await _dbContext.Doctors
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == doctorId, cancellationToken);
+
+        if (doctor is null || !IsActiveDoctor(doctor))
+        {
+            return;
+        }
+
+        var hasAnyService = await _dbContext.DoctorServices
+            .AsNoTracking()
+            .AnyAsync(x => x.DoctorId == doctorId, cancellationToken);
+
+        if (hasAnyService)
+        {
+            return;
+        }
+
+        var defaultServiceId = await GetDefaultDoctorServiceIdAsync(cancellationToken);
+        if (!defaultServiceId.HasValue)
+        {
+            return;
+        }
+
+        var serviceLinkExists = await _dbContext.DoctorServices
+            .AsNoTracking()
+            .AnyAsync(x => x.DoctorId == doctorId && x.ServiceId == defaultServiceId.Value, cancellationToken);
+
+        if (serviceLinkExists)
+        {
+            return;
+        }
+
+        _dbContext.DoctorServices.Add(new DoctorService
+        {
+            DoctorId = doctorId,
+            ServiceId = defaultServiceId.Value
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<Doctor> GetCurrentDoctorAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
@@ -567,6 +742,47 @@ public sealed class DoctorsService : IClinicDoctorsService
         {
             throw new ApiException(HttpStatusCode.NotFound, "Doctor was not found.");
         }
+    }
+
+    private async Task EnsureServicesExistAsync(IReadOnlyCollection<Guid> serviceIds, CancellationToken cancellationToken)
+    {
+        if (serviceIds.Count == 0)
+        {
+            return;
+        }
+
+        var existingServiceIds = await _dbContext.Services
+            .AsNoTracking()
+            .Where(x => serviceIds.Contains(x.Id) && x.IsActive)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existingServiceIds.Count != serviceIds.Count)
+        {
+            throw new ApiException(HttpStatusCode.NotFound, "One or more services were not found.");
+        }
+    }
+
+    private async Task<Guid?> GetDefaultDoctorServiceIdAsync(CancellationToken cancellationToken)
+    {
+        var generalConsultationId = await _dbContext.Services
+            .AsNoTracking()
+            .Where(x => x.IsActive && x.Name == "General Consultation")
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (generalConsultationId.HasValue)
+        {
+            return generalConsultationId;
+        }
+
+        return await _dbContext.Services
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.CreatedAt)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private async Task EnsureRoleExistsAsync(string roleName, CancellationToken cancellationToken)

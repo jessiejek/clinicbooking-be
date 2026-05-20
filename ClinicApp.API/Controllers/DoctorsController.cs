@@ -1,6 +1,7 @@
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Features.Doctors.Dtos;
+using ClinicApp.Application.Features.Services.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -41,6 +42,14 @@ public sealed class DoctorsController : ControllerBase
         return Ok(doctor);
     }
 
+    [AllowAnonymous]
+    [HttpGet("{doctorId:guid}/services")]
+    public async Task<ActionResult<IReadOnlyList<ServiceDto>>> GetServices(Guid doctorId, CancellationToken cancellationToken)
+    {
+        var services = await _doctorsService.GetDoctorServicesAsync(doctorId, cancellationToken);
+        return Ok(services);
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<DoctorDetailDto>> Create(
@@ -60,6 +69,17 @@ public sealed class DoctorsController : ControllerBase
     {
         var doctor = await _doctorsService.UpdateDoctorAsync(id, dto, cancellationToken);
         return Ok(doctor);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpPut("{doctorId:guid}/services")]
+    public async Task<ActionResult<IReadOnlyList<ServiceDto>>> UpdateServices(
+        Guid doctorId,
+        [FromBody] UpdateDoctorServicesDto dto,
+        CancellationToken cancellationToken)
+    {
+        var services = await _doctorsService.UpdateDoctorServicesAsync(doctorId, dto, cancellationToken);
+        return Ok(services);
     }
 
     [Authorize(Roles = "Admin")]

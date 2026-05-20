@@ -32,6 +32,8 @@ public sealed class ClinicSeeder : IClinicSeeder
         }
 
         await LinkGeneralConsultationAsync(cancellationToken);
+        await LinkGeneralConsultationToRandolfAsync(cancellationToken);
+        await LinkGeneralConsultationToActiveDoctorsWithoutServicesAsync(cancellationToken);
     }
 
     private async Task SeedDoctorsAsync(CancellationToken cancellationToken)
@@ -263,6 +265,102 @@ public sealed class ClinicSeeder : IClinicSeeder
             DoctorId = doctorId,
             ServiceId = generalConsultation.Id
         }));
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task LinkGeneralConsultationToRandolfAsync(CancellationToken cancellationToken)
+    {
+        var generalConsultation = await _dbContext.Services
+            .SingleOrDefaultAsync(x => x.Name == "General Consultation", cancellationToken);
+
+        if (generalConsultation is null)
+        {
+            return;
+        }
+
+        var doctors = await _dbContext.Doctors
+            .AsNoTracking()
+            .Where(x => x.Status == "Active")
+            .ToListAsync(cancellationToken);
+
+        var randolfDoctors = doctors
+            .Where(x =>
+                x.FullName.Contains("randolf", StringComparison.OrdinalIgnoreCase) ||
+                x.FullName.Contains("butantan1", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (randolfDoctors.Count == 0)
+        {
+            return;
+        }
+
+        var existingLinks = await _dbContext.DoctorServices
+            .Where(x => x.ServiceId == generalConsultation.Id && randolfDoctors.Select(d => d.Id).Contains(x.DoctorId))
+            .Select(x => x.DoctorId)
+            .ToListAsync(cancellationToken);
+
+        var missingDoctorIds = randolfDoctors
+            .Select(x => x.Id)
+            .Except(existingLinks)
+            .ToList();
+
+        if (missingDoctorIds.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.DoctorServices.AddRange(missingDoctorIds.Select(doctorId => new DoctorService
+        {
+            DoctorId = doctorId,
+            ServiceId = generalConsultation.Id
+        }));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task LinkGeneralConsultationToActiveDoctorsWithoutServicesAsync(CancellationToken cancellationToken)
+    {
+        var generalConsultation = await _dbContext.Services
+            .SingleOrDefaultAsync(x => x.Name == "General Consultation", cancellationToken);
+
+        if (generalConsultation is null)
+        {
+            return;
+        }
+
+        var activeDoctorIds = await _dbContext.Doctors
+            .AsNoTracking()
+            .Where(x => x.Status == "Active")
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (activeDoctorIds.Count == 0)
+        {
+            return;
+        }
+
+        var linkedDoctorIds = await _dbContext.DoctorServices
+            .AsNoTracking()
+            .Where(x => activeDoctorIds.Contains(x.DoctorId))
+            .Select(x => x.DoctorId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var missingDoctorIds = activeDoctorIds
+            .Except(linkedDoctorIds)
+            .ToList();
+
+        if (missingDoctorIds.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.DoctorServices.AddRange(missingDoctorIds.Select(doctorId => new DoctorService
+        {
+            DoctorId = doctorId,
+            ServiceId = generalConsultation.Id
+        }));
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
