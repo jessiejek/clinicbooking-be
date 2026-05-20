@@ -232,25 +232,12 @@ public sealed class DoctorsService : IClinicDoctorsService
 
     public async Task<IReadOnlyList<DoctorScheduleDto>> GetSchedulesAsync(Guid doctorId, CancellationToken cancellationToken)
     {
-        var doctor = await _dbContext.Doctors
-            .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == doctorId, cancellationToken);
-
-        if (doctor is null)
-        {
-            throw new ApiException(HttpStatusCode.NotFound, "Doctor was not found.");
-        }
-
-        if (!IsActiveDoctor(doctor))
-        {
-            return [];
-        }
-
         var schedules = await _dbContext.DoctorSchedules
             .AsNoTracking()
             .Where(x => x.DoctorId == doctorId)
             .Select(x => new DoctorScheduleDto(
                 x.Id,
+                x.DoctorId,
                 x.DayOfWeek,
                 FormatTime(x.StartTime),
                 FormatTime(x.EndTime)))
@@ -302,6 +289,7 @@ public sealed class DoctorsService : IClinicDoctorsService
                 .Where(x => x.DoctorId == doctorId)
                 .Select(x => new DoctorScheduleDto(
                     x.Id,
+                    x.DoctorId,
                     x.DayOfWeek,
                     FormatTime(x.StartTime),
                     FormatTime(x.EndTime)))
@@ -625,6 +613,7 @@ public sealed class DoctorsService : IClinicDoctorsService
                 .ThenBy(x => x.StartTime)
                 .Select(x => new DoctorScheduleDto(
                     Id: x.Id,
+                    DoctorId: x.DoctorId,
                     DayOfWeek: x.DayOfWeek,
                     StartTime: FormatTime(x.StartTime),
                     EndTime: FormatTime(x.EndTime)))
