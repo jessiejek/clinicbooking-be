@@ -20,6 +20,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<DoctorDayStatus> DoctorDayStatuses => Set<DoctorDayStatus>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<DoctorService> DoctorServices => Set<DoctorService>();
+    public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
@@ -128,6 +129,44 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
                 .WithMany()
                 .HasForeignKey(x => x.ServiceId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Patient>(entity =>
+        {
+            entity.ToTable("Patients");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientCode).IsRequired().HasMaxLength(20);
+            entity.Property(x => x.UserId).HasMaxLength(450);
+            entity.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.MiddleName).HasMaxLength(100);
+            entity.Property(x => x.LastName).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.DateOfBirth).HasColumnType("date");
+            entity.Property(x => x.Sex).IsRequired().HasMaxLength(10);
+            entity.Property(x => x.CivilStatus).HasMaxLength(20);
+            entity.Property(x => x.Address).HasMaxLength(300);
+            entity.Property(x => x.City).HasMaxLength(100);
+            entity.Property(x => x.ZipCode).HasMaxLength(10);
+            entity.Property(x => x.ContactNumber).HasMaxLength(20);
+            entity.Property(x => x.Email).HasMaxLength(200);
+            entity.Property(x => x.EmergencyContactName).HasMaxLength(200);
+            entity.Property(x => x.EmergencyContactNumber).HasMaxLength(20);
+            entity.Property(x => x.EmergencyContactRelationship).HasMaxLength(50);
+            entity.Property(x => x.BloodType).HasMaxLength(5);
+            entity.Property(x => x.PhilHealthNumber).HasMaxLength(20);
+            entity.Property(x => x.HmoProvider).HasMaxLength(100);
+            entity.Property(x => x.HmoCardNumber).HasMaxLength(50);
+            entity.Property(x => x.IsGuest).HasDefaultValue(false);
+            entity.Property(x => x.IsEmailVerified).HasDefaultValue(false);
+            entity.Property(x => x.ConsentedAt).HasColumnType("datetime2");
+            entity.Property(x => x.ConsentVersion).HasMaxLength(10);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.PatientCode).IsUnique();
+            entity.HasIndex(x => x.UserId).IsUnique().HasFilter("[UserId] IS NOT NULL");
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<RefreshToken>(entity =>

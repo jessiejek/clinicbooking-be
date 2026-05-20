@@ -67,6 +67,9 @@ using (var scope = app.Services.CreateScope())
     var seeder = scope.ServiceProvider.GetRequiredService<ClinicApp.Infrastructure.Authentication.IIdentitySeeder>();
     await seeder.SeedAsync(CancellationToken.None);
 
+    var patientSeeder = scope.ServiceProvider.GetRequiredService<IPatientSeeder>();
+    await patientSeeder.SeedAsync(CancellationToken.None);
+
     var clinicSeeder = scope.ServiceProvider.GetRequiredService<IClinicSeeder>();
     await clinicSeeder.SeedAsync(CancellationToken.None);
 
