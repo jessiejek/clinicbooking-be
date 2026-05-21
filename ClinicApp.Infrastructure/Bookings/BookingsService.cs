@@ -8,6 +8,7 @@ using ClinicApp.Application.Common.Models;
 using ClinicApp.Application.Features.Bookings.Dtos;
 using ClinicApp.Application.Features.Doctors.Dtos;
 using ClinicApp.Application.Features.Patients.Dtos;
+using ClinicApp.Application.Features.PatientDocuments.Dtos;
 using ClinicApp.Application.Features.Services.Dtos;
 using ClinicApp.Domain.Entities.Clinic;
 using ClinicApp.Infrastructure.Identity;
@@ -443,29 +444,41 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 throw new ApiException(HttpStatusCode.Forbidden, "You do not have access to this booking.");
             }
 
-            if (booking.Status == BookingStatusCompleted)
-            {
-                throw new ApiException(HttpStatusCode.BadRequest, "Booking has already been completed.");
-            }
-
-            if (booking.Status is not BookingStatusConfirmed and not BookingStatusCheckedIn)
+            if (booking.Status is not BookingStatusConfirmed and not BookingStatusCheckedIn and not BookingStatusCompleted)
             {
                 throw new ApiException(HttpStatusCode.BadRequest, "Booking cannot be completed.");
             }
 
             var now = DateTime.UtcNow;
+            var consultation = await UpsertConsultationAsync(booking, dto, now, cancellationToken);
+            await UpsertConsultationVitalSignsAsync(consultation, booking, dto, currentUserId, now, cancellationToken);
+            await UpsertConsultationSoapNotesAsync(consultation, booking, dto, now, cancellationToken);
+            await UpsertConsultationDiagnosesAsync(consultation, booking, dto, now, cancellationToken);
+            await UpsertPrescriptionAsync(consultation, booking, dto, now, cancellationToken);
+            await UpsertLabOrdersAsync(consultation, booking, dto, now, cancellationToken);
+            await UpsertFollowUpAsync(consultation, booking, dto, now, cancellationToken);
+
+            var generalNotes = ResolveGeneralNotes(dto);
+            var soapSummary = ResolveSoapSummary(dto);
+            var diagnosisSummary = ResolveDiagnosisSummary(dto);
+            var followUp = ResolveFollowUpData(dto, booking);
+            var prescriptionItems = ResolveLegacyPrescriptionJsonItems(dto);
+
             booking.Status = BookingStatusCompleted;
-            booking.SoapNotes = TrimOrNull(dto.SoapNotes);
+            booking.SoapNotes = soapSummary;
             booking.DoctorFeeNotes = TrimOrNull(dto.DoctorFeeNotes);
-            booking.Notes = TrimOrNull(dto.Notes) ?? booking.Notes;
-            booking.Diagnosis = TrimOrNull(dto.Diagnosis);
-            booking.FollowUpDate = dto.FollowUpDate;
-            booking.FollowUpInstructions = TrimOrNull(dto.FollowUpInstructions);
-            booking.PrescriptionJson = dto.PrescriptionItems is { Count: > 0 }
-                ? JsonSerializer.Serialize(dto.PrescriptionItems, ClinicalDocumentJsonOptions)
+            booking.Notes = generalNotes ?? booking.Notes;
+            booking.Diagnosis = diagnosisSummary;
+            if (followUp is not null)
+            {
+                booking.FollowUpDate = followUp.Value.FollowUpDate;
+                booking.FollowUpInstructions = followUp.Value.Instructions;
+            }
+            booking.PrescriptionJson = prescriptionItems.Count > 0
+                ? JsonSerializer.Serialize(prescriptionItems, ClinicalDocumentJsonOptions)
                 : null;
-            booking.DoctorCompletedAt = now;
-            booking.DoctorCompletedByUserId = currentUserId;
+            booking.DoctorCompletedAt ??= now;
+            booking.DoctorCompletedByUserId ??= currentUserId;
             booking.UpdatedAt = now;
 
             if (dto.IsProfessionalFeeWaived)
@@ -1230,6 +1243,611 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
         return booking;
     }
+
+    private async Task<Consultation> UpsertConsultationAsync(
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var consultation = await _dbContext.Consultations
+            .SingleOrDefaultAsync(x => x.BookingId == booking.Id, cancellationToken);
+
+        if (consultation is null)
+        {
+            consultation = new Consultation
+            {
+                Id = Guid.NewGuid(),
+                PatientId = booking.PatientId,
+                DoctorId = booking.DoctorId,
+                BookingId = booking.Id,
+                Status = BookingStatusCompleted,
+                GeneralNotes = ResolveGeneralNotes(dto),
+                StartedAt = now,
+                CompletedAt = now,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            _dbContext.Consultations.Add(consultation);
+            return consultation;
+        }
+
+        consultation.PatientId = booking.PatientId;
+        consultation.DoctorId = booking.DoctorId;
+        consultation.BookingId = booking.Id;
+        consultation.Status = BookingStatusCompleted;
+        consultation.GeneralNotes = ResolveGeneralNotes(dto);
+        consultation.StartedAt = consultation.StartedAt == default ? now : consultation.StartedAt;
+        consultation.CompletedAt = now;
+        consultation.UpdatedAt = now;
+
+        return consultation;
+    }
+
+    private async Task UpsertConsultationVitalSignsAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        string currentUserId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var vitalSigns = dto.VitalSigns;
+        if (vitalSigns is null || !HasUsefulVitalSigns(vitalSigns))
+        {
+            return;
+        }
+
+        var existing = await _dbContext.ConsultationVitalSigns
+            .Where(x => x.PatientId == booking.PatientId && x.ConsultationId == consultation.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existing.Count > 0)
+        {
+            _dbContext.ConsultationVitalSigns.RemoveRange(existing);
+        }
+
+        _dbContext.ConsultationVitalSigns.Add(new ConsultationVitalSign
+        {
+            Id = Guid.NewGuid(),
+            PatientId = booking.PatientId,
+            ConsultationId = consultation.Id,
+            BookingId = booking.Id,
+            SystolicBp = vitalSigns.SystolicBp,
+            DiastolicBp = vitalSigns.DiastolicBp,
+            HeartRate = vitalSigns.HeartRate,
+            RespiratoryRate = vitalSigns.RespiratoryRate,
+            Temperature = vitalSigns.Temperature,
+            OxygenSaturation = vitalSigns.OxygenSaturation,
+            Weight = vitalSigns.Weight,
+            Height = vitalSigns.Height,
+            Bmi = vitalSigns.Bmi,
+            PainScore = vitalSigns.PainScore,
+            TakenAt = vitalSigns.TakenAt ?? now,
+            TakenByUserId = currentUserId,
+            CreatedAt = now
+        });
+    }
+
+    private async Task UpsertConsultationSoapNotesAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var resolved = ResolveSoapPayload(dto);
+        if (resolved is null)
+        {
+            return;
+        }
+
+        var soapNote = await _dbContext.ConsultationSoapNotes
+            .SingleOrDefaultAsync(x => x.ConsultationId == consultation.Id, cancellationToken);
+
+        if (soapNote is null)
+        {
+            soapNote = new ConsultationSoapNote
+            {
+                Id = Guid.NewGuid(),
+                PatientId = booking.PatientId,
+                ConsultationId = consultation.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _dbContext.ConsultationSoapNotes.Add(soapNote);
+        }
+
+        soapNote.PatientId = booking.PatientId;
+        soapNote.Subjective = resolved.Subjective;
+        soapNote.Objective = resolved.Objective;
+        soapNote.Assessment = resolved.Assessment;
+        soapNote.Plan = resolved.Plan;
+        soapNote.UpdatedAt = now;
+    }
+
+    private async Task UpsertConsultationDiagnosesAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var diagnoses = ResolveDiagnosisRows(dto);
+        if (diagnoses.Count == 0)
+        {
+            return;
+        }
+
+        var existing = await _dbContext.ConsultationDiagnoses
+            .Where(x => x.PatientId == booking.PatientId && x.ConsultationId == consultation.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existing.Count > 0)
+        {
+            _dbContext.ConsultationDiagnoses.RemoveRange(existing);
+        }
+
+        var hasPrimary = diagnoses.Any(x => x.IsPrimary);
+        for (var i = 0; i < diagnoses.Count; i++)
+        {
+            var diagnosis = diagnoses[i];
+            _dbContext.ConsultationDiagnoses.Add(new ConsultationDiagnosis
+            {
+                Id = Guid.NewGuid(),
+                PatientId = booking.PatientId,
+                ConsultationId = consultation.Id,
+                DiagnosisText = diagnosis.DiagnosisText,
+                DiagnosisCode = diagnosis.DiagnosisCode,
+                IsPrimary = hasPrimary ? diagnosis.IsPrimary : i == 0,
+                Notes = diagnosis.Notes,
+                CreatedAt = now
+            });
+        }
+    }
+
+    private async Task UpsertPrescriptionAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var sourceItems = ResolvePrescriptionSourceItems(dto);
+        var prescriptionNotes = ResolvePrescriptionNotes(dto);
+        if (sourceItems.Count == 0 && string.IsNullOrWhiteSpace(prescriptionNotes))
+        {
+            return;
+        }
+
+        var prescriptionIds = await _dbContext.Prescriptions
+            .Where(x => x.PatientId == booking.PatientId && x.ConsultationId == consultation.Id)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (prescriptionIds.Count > 0)
+        {
+            var existingItems = await _dbContext.PrescriptionItems
+                .Where(x => prescriptionIds.Contains(x.PrescriptionId))
+                .ToListAsync(cancellationToken);
+
+            if (existingItems.Count > 0)
+            {
+                _dbContext.PrescriptionItems.RemoveRange(existingItems);
+            }
+
+            var existingPrescriptions = await _dbContext.Prescriptions
+                .Where(x => prescriptionIds.Contains(x.Id))
+                .ToListAsync(cancellationToken);
+
+            _dbContext.Prescriptions.RemoveRange(existingPrescriptions);
+        }
+
+        var prescription = new Prescription
+        {
+            Id = Guid.NewGuid(),
+            PatientId = booking.PatientId,
+            ConsultationId = consultation.Id,
+            BookingId = booking.Id,
+            DoctorId = booking.DoctorId,
+            Notes = prescriptionNotes,
+            IssuedAt = now,
+            CreatedAt = now
+        };
+        _dbContext.Prescriptions.Add(prescription);
+
+        foreach (var item in sourceItems)
+        {
+            _dbContext.PrescriptionItems.Add(new PrescriptionItem
+            {
+                Id = Guid.NewGuid(),
+                PrescriptionId = prescription.Id,
+                MedicationName = item.MedicationName,
+                Strength = item.Strength,
+                Dosage = item.Dosage,
+                Route = item.Route,
+                Frequency = item.Frequency,
+                Duration = item.Duration,
+                Quantity = item.Quantity,
+                Instructions = item.Instructions,
+                CreatedAt = now
+            });
+        }
+    }
+
+    private async Task UpsertLabOrdersAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (dto.LabOrders is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var validLabOrders = dto.LabOrders
+            .Select(order => new
+            {
+                Notes = TrimOrNull(order.Notes),
+                Items = (order.Items ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item.TestName))
+                    .Select(item => new
+                    {
+                        TestName = item.TestName!.Trim(),
+                        TestCode = TrimOrNull(item.TestCode),
+                        Instructions = TrimOrNull(item.Instructions)
+                    })
+                    .ToList()
+            })
+            .Where(order => order.Items.Count > 0 || !string.IsNullOrWhiteSpace(order.Notes))
+            .ToList();
+
+        if (validLabOrders.Count == 0)
+        {
+            return;
+        }
+
+        var existingOrders = await _dbContext.LabOrders
+            .Where(x => x.PatientId == booking.PatientId && x.ConsultationId == consultation.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existingOrders.Count > 0)
+        {
+            var existingOrderIds = existingOrders.Select(x => x.Id).ToList();
+            var existingItems = await _dbContext.LabOrderItems
+                .Where(x => existingOrderIds.Contains(x.LabOrderId))
+                .ToListAsync(cancellationToken);
+
+            if (existingItems.Count > 0)
+            {
+                _dbContext.LabOrderItems.RemoveRange(existingItems);
+            }
+
+            _dbContext.LabOrders.RemoveRange(existingOrders);
+        }
+
+        foreach (var order in validLabOrders)
+        {
+            var labOrder = new LabOrder
+            {
+                Id = Guid.NewGuid(),
+                PatientId = booking.PatientId,
+                ConsultationId = consultation.Id,
+                BookingId = booking.Id,
+                RequestedByDoctorId = booking.DoctorId,
+                Notes = order.Notes,
+                Status = "Requested",
+                RequestedAt = now,
+                CreatedAt = now
+            };
+
+            _dbContext.LabOrders.Add(labOrder);
+
+            foreach (var item in order.Items)
+            {
+                _dbContext.LabOrderItems.Add(new LabOrderItem
+                {
+                    Id = Guid.NewGuid(),
+                    LabOrderId = labOrder.Id,
+                    TestName = item.TestName,
+                    TestCode = item.TestCode,
+                    Instructions = item.Instructions,
+                    Status = "Pending",
+                    CreatedAt = now
+                });
+            }
+        }
+    }
+
+    private async Task UpsertFollowUpAsync(
+        Consultation consultation,
+        Booking booking,
+        DoctorCompleteBookingDto dto,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var followUp = ResolveFollowUpData(dto, booking);
+        if (followUp is null)
+        {
+            return;
+        }
+
+        var existing = await _dbContext.ConsultationFollowUps
+            .Where(x => x.PatientId == booking.PatientId && x.ConsultationId == consultation.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existing.Count > 0)
+        {
+            _dbContext.ConsultationFollowUps.RemoveRange(existing);
+        }
+
+        _dbContext.ConsultationFollowUps.Add(new ConsultationFollowUp
+        {
+            Id = Guid.NewGuid(),
+            PatientId = booking.PatientId,
+            ConsultationId = consultation.Id,
+            BookingId = booking.Id,
+            FollowUpDate = followUp.Value.FollowUpDate,
+            Instructions = followUp.Value.Instructions,
+            Reason = followUp.Value.Reason,
+            Status = "Pending",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+    }
+
+    private static string? ResolveGeneralNotes(DoctorCompleteBookingDto dto)
+    {
+        return TrimOrNull(dto.GeneralNotes) ?? TrimOrNull(dto.Notes);
+    }
+
+    private static string? ResolveSoapSummary(DoctorCompleteBookingDto dto)
+    {
+        var soap = ResolveSoapPayload(dto);
+        if (soap is not null)
+        {
+            return BuildLegacySoapSummary(soap);
+        }
+
+        return TrimOrNull(dto.SoapNotes);
+    }
+
+    private static string? ResolveDiagnosisSummary(DoctorCompleteBookingDto dto)
+    {
+        var diagnoses = ResolveDiagnosisRows(dto);
+        if (diagnoses.Count > 0)
+        {
+            var primary = diagnoses.FirstOrDefault(x => x.IsPrimary) ?? diagnoses[0];
+            return primary.DiagnosisText;
+        }
+
+        return TrimOrNull(dto.Diagnosis);
+    }
+
+    private static (DateOnly FollowUpDate, string? Instructions, string? Reason)? ResolveFollowUpData(
+        DoctorCompleteBookingDto dto,
+        Booking booking)
+    {
+        var hasFollowUpData = dto.FollowUp is not null
+            || dto.FollowUpDate.HasValue
+            || !string.IsNullOrWhiteSpace(dto.FollowUpInstructions);
+
+        if (!hasFollowUpData)
+        {
+            return null;
+        }
+
+        DateOnly? followUpDate = dto.FollowUp?.FollowUpDate ?? dto.FollowUpDate;
+        var effectiveDate = followUpDate ?? booking.AppointmentDate;
+        var instructions = TrimOrNull(dto.FollowUp?.Instructions) ?? TrimOrNull(dto.FollowUpInstructions);
+        var reason = TrimOrNull(dto.FollowUp?.Reason);
+        return (effectiveDate, instructions, reason);
+    }
+
+    private static List<PatientPrescriptionItemDto> ResolveLegacyPrescriptionJsonItems(DoctorCompleteBookingDto dto)
+    {
+        var sourceItems = ResolvePrescriptionSourceItems(dto);
+        return sourceItems
+            .Select(item => new PatientPrescriptionItemDto(
+                Id: Guid.NewGuid(),
+                MedicineName: item.MedicationName,
+                GenericName: item.GenericName,
+                DosageForm: item.DosageForm,
+                Strength: item.Strength,
+                Sig: item.Instructions,
+                Quantity: item.LegacyQuantity,
+                Frequency: item.Frequency,
+                Duration: item.Duration,
+                Instructions: item.Instructions,
+                IsControlledSubstance: item.IsControlledSubstance,
+                Route: item.Route,
+                RouteDescription: item.RouteDescription,
+                UnitOfMeasure: item.UnitOfMeasure,
+                UnitOfMeasureDescription: item.UnitOfMeasureDescription,
+                BrandName: item.BrandName,
+                FrequencyCode: item.FrequencyCode))
+            .ToList();
+    }
+
+    private static List<PrescriptionSourceItem> ResolvePrescriptionSourceItems(DoctorCompleteBookingDto dto)
+    {
+        if (dto.Prescription is not null)
+        {
+            return dto.Prescription.Items?
+                .Where(item => !string.IsNullOrWhiteSpace(item.MedicationName))
+                .Select(item => new PrescriptionSourceItem(
+                    MedicationName: item.MedicationName!.Trim(),
+                    Strength: TrimOrNull(item.Strength),
+                    Dosage: TrimOrNull(item.Dosage),
+                    Route: TrimOrNull(item.Route),
+                    Frequency: TrimOrNull(item.Frequency),
+                    Duration: TrimOrNull(item.Duration),
+                    Quantity: TrimOrNull(item.Quantity),
+                    Instructions: TrimOrNull(item.Instructions),
+                    GenericName: null,
+                    DosageForm: null,
+                    IsControlledSubstance: false,
+                    RouteDescription: null,
+                    UnitOfMeasure: null,
+                    UnitOfMeasureDescription: null,
+                    BrandName: null,
+                    FrequencyCode: null,
+                    LegacyQuantity: ParsePrescriptionQuantity(item.Quantity)))
+                .ToList()
+                ?? [];
+        }
+
+        return dto.PrescriptionItems?
+            .Where(item => !string.IsNullOrWhiteSpace(item.MedicineName))
+            .Select(item => new PrescriptionSourceItem(
+                MedicationName: item.MedicineName!.Trim(),
+                Strength: TrimOrNull(item.Strength),
+                Dosage: null,
+                Route: TrimOrNull(item.Route),
+                Frequency: TrimOrNull(item.Frequency),
+                Duration: TrimOrNull(item.Duration),
+                Quantity: item.Quantity.ToString(CultureInfo.InvariantCulture),
+                Instructions: TrimOrNull(item.Instructions),
+                GenericName: TrimOrNull(item.GenericName),
+                DosageForm: TrimOrNull(item.DosageForm),
+                IsControlledSubstance: item.IsControlledSubstance,
+                RouteDescription: TrimOrNull(item.RouteDescription),
+                UnitOfMeasure: TrimOrNull(item.UnitOfMeasure),
+                UnitOfMeasureDescription: TrimOrNull(item.UnitOfMeasureDescription),
+                BrandName: TrimOrNull(item.BrandName),
+                FrequencyCode: TrimOrNull(item.FrequencyCode),
+                LegacyQuantity: item.Quantity))
+            .ToList()
+            ?? [];
+    }
+
+    private static DoctorCompleteSoapDto? ResolveSoapPayload(DoctorCompleteBookingDto dto)
+    {
+        var subjective = TrimOrNull(dto.Soap?.Subjective) ?? TrimOrNull(dto.SoapNotes);
+        var objective = TrimOrNull(dto.Soap?.Objective);
+        var assessment = TrimOrNull(dto.Soap?.Assessment);
+        var plan = TrimOrNull(dto.Soap?.Plan);
+
+        if (subjective is null && objective is null && assessment is null && plan is null)
+        {
+            return null;
+        }
+
+        return new DoctorCompleteSoapDto(subjective, objective, assessment, plan);
+    }
+
+    private static List<ResolvedDiagnosis> ResolveDiagnosisRows(DoctorCompleteBookingDto dto)
+    {
+        var diagnosisRows = new List<ResolvedDiagnosis>();
+
+        if (dto.Diagnoses is { Count: > 0 })
+        {
+            foreach (var diagnosis in dto.Diagnoses)
+            {
+                var text = TrimOrNull(diagnosis.DiagnosisText);
+                if (text is null)
+                {
+                    continue;
+                }
+
+                diagnosisRows.Add(new ResolvedDiagnosis(
+                    text,
+                    TrimOrNull(diagnosis.DiagnosisCode),
+                    diagnosis.IsPrimary,
+                    TrimOrNull(diagnosis.Notes)));
+            }
+        }
+
+        if (diagnosisRows.Count == 0 && !string.IsNullOrWhiteSpace(dto.Diagnosis))
+        {
+            diagnosisRows.Add(new ResolvedDiagnosis(TrimOrNull(dto.Diagnosis)!, null, true, null));
+        }
+
+        if (diagnosisRows.Count > 0 && !diagnosisRows.Any(x => x.IsPrimary))
+        {
+            diagnosisRows[0] = diagnosisRows[0] with { IsPrimary = true };
+        }
+
+        return diagnosisRows;
+    }
+
+    private static string? BuildLegacySoapSummary(DoctorCompleteSoapDto soap)
+    {
+        var parts = new[]
+        {
+            string.IsNullOrWhiteSpace(soap.Subjective) ? null : $"Subjective: {soap.Subjective}",
+            string.IsNullOrWhiteSpace(soap.Objective) ? null : $"Objective: {soap.Objective}",
+            string.IsNullOrWhiteSpace(soap.Assessment) ? null : $"Assessment: {soap.Assessment}",
+            string.IsNullOrWhiteSpace(soap.Plan) ? null : $"Plan: {soap.Plan}"
+        };
+
+        var summary = string.Join(Environment.NewLine, parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+        return string.IsNullOrWhiteSpace(summary) ? null : summary;
+    }
+
+    private static int ParsePrescriptionQuantity(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 1;
+        }
+
+        var digits = new string(value.Where(char.IsDigit).ToArray());
+        if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var quantity) && quantity > 0)
+        {
+            return quantity;
+        }
+
+        return 1;
+    }
+
+    private static bool HasUsefulVitalSigns(DoctorCompleteVitalSignsDto vitalSigns)
+    {
+        return vitalSigns.SystolicBp.HasValue
+            || vitalSigns.DiastolicBp.HasValue
+            || vitalSigns.HeartRate.HasValue
+            || vitalSigns.RespiratoryRate.HasValue
+            || vitalSigns.Temperature.HasValue
+            || vitalSigns.OxygenSaturation.HasValue
+            || vitalSigns.Weight.HasValue
+            || vitalSigns.Height.HasValue
+            || vitalSigns.Bmi.HasValue
+            || vitalSigns.PainScore.HasValue
+            || vitalSigns.TakenAt.HasValue;
+    }
+
+    private static string? ResolvePrescriptionNotes(DoctorCompleteBookingDto dto)
+    {
+        return TrimOrNull(dto.Prescription?.Notes);
+    }
+
+    private sealed record PrescriptionSourceItem(
+        string MedicationName,
+        string? Strength,
+        string? Dosage,
+        string? Route,
+        string? Frequency,
+        string? Duration,
+        string? Quantity,
+        string? Instructions,
+        string? GenericName,
+        string? DosageForm,
+        bool IsControlledSubstance,
+        string? RouteDescription,
+        string? UnitOfMeasure,
+        string? UnitOfMeasureDescription,
+        string? BrandName,
+        string? FrequencyCode,
+        int LegacyQuantity);
+
+    private sealed record ResolvedDiagnosis(
+        string DiagnosisText,
+        string? DiagnosisCode,
+        bool IsPrimary,
+        string? Notes);
 
     private async Task<Patient> LoadPatientAsync(Guid id, CancellationToken cancellationToken)
     {
