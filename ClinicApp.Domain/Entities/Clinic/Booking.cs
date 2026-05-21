@@ -25,6 +25,17 @@ public sealed class Booking
     public Guid? RescheduledFromBookingId { get; set; }
     public string? ReceiptUrl { get; set; }
     public string? OrNumber { get; set; }
+    public DateTime? CheckedInAt { get; set; }
+    public string? CheckedInByUserId { get; set; }
+    public DateTime? DoctorCompletedAt { get; set; }
+    public string? DoctorCompletedByUserId { get; set; }
+    public decimal? FinalAmount { get; set; }
+    public string? DoctorFeeNotes { get; set; }
+    public string? SoapNotes { get; set; }
+    public bool IsProfessionalFeeWaived { get; set; }
+    public string? ProfessionalFeeWaivedReason { get; set; }
+    public string? ProfessionalFeeWaivedByUserId { get; set; }
+    public DateTime? ProfessionalFeeWaivedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -33,4 +44,5 @@ public sealed class Booking
     public Service? Service { get; set; }
     public Payment? Payment { get; set; }
     public Booking? RescheduledFromBooking { get; set; }
+    public ICollection<BookingServiceItem> BookingServiceItems { get; set; } = new List<BookingServiceItem>();
 }

@@ -33,7 +33,7 @@ public sealed class BookingsController : ControllerBase
         return Ok(result);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Patient")]
     [HttpPost]
     public async Task<ActionResult<BookingDetailDto>> Create(
         [FromBody] CreateBookingDto dto,
@@ -48,6 +48,36 @@ public sealed class BookingsController : ControllerBase
     public async Task<ActionResult<BookingDetailDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var booking = await _bookingsService.GetBookingAsync(id, User, cancellationToken);
+        return Ok(booking);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpPatch("{id:guid}/check-in")]
+    public async Task<ActionResult<BookingDetailDto>> CheckIn(
+        Guid id,
+        [FromBody] CheckInBookingDto? dto,
+        CancellationToken cancellationToken)
+    {
+        var booking = await _bookingsService.CheckInBookingAsync(id, User, dto, cancellationToken);
+        return Ok(booking);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpPatch("{id:guid}/undo-check-in")]
+    public async Task<ActionResult<BookingDetailDto>> UndoCheckIn(Guid id, CancellationToken cancellationToken)
+    {
+        var booking = await _bookingsService.UndoCheckInBookingAsync(id, User, cancellationToken);
+        return Ok(booking);
+    }
+
+    [Authorize(Roles = "Doctor")]
+    [HttpPatch("{id:guid}/doctor-complete")]
+    public async Task<ActionResult<BookingDetailDto>> DoctorComplete(
+        Guid id,
+        [FromBody] DoctorCompleteBookingDto dto,
+        CancellationToken cancellationToken)
+    {
+        var booking = await _bookingsService.DoctorCompleteBookingAsync(id, User, dto, cancellationToken);
         return Ok(booking);
     }
 
@@ -128,11 +158,43 @@ public sealed class BookingsController : ControllerBase
     }
 
     [Authorize(Roles = "Doctor")]
+    [HttpGet("doctor/today-summary")]
+    public async Task<ActionResult<DoctorTodaySummaryDto>> GetDoctorTodaySummary(CancellationToken cancellationToken)
+    {
+        var summary = await _bookingsService.GetDoctorTodaySummaryAsync(User, cancellationToken);
+        return Ok(summary);
+    }
+
+    [Authorize(Roles = "Doctor")]
     [HttpGet("doctor/upcoming")]
     public async Task<ActionResult<IReadOnlyList<BookingSummaryDto>>> GetDoctorUpcoming(CancellationToken cancellationToken)
     {
         var bookings = await _bookingsService.GetDoctorUpcomingBookingsAsync(User, cancellationToken);
         return Ok(bookings);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("staff/today")]
+    public async Task<ActionResult<PagedResult<BookingSummaryDto>>> GetStaffToday(
+        [FromQuery] Guid? doctorId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _bookingsService.GetStaffTodayBookingsAsync(doctorId, status, page, pageSize, cancellationToken);
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("staff/for-payment")]
+    public async Task<ActionResult<PagedResult<StaffForPaymentDto>>> GetStaffForPayment(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _bookingsService.GetStaffBookingsForPaymentAsync(page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     [Authorize(Roles = "Admin,Staff")]

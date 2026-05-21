@@ -1,4 +1,5 @@
 using System.Text;
+using ClinicApp.API.Realtime;
 using ClinicApp.API.DependencyInjection;
 using ClinicApp.API.Middleware;
 using ClinicApp.Application.Common.Interfaces;
@@ -32,9 +33,12 @@ builder.Services.AddCors(options =>
                 "http://localhost:8100",
                 "https://localhost:8100")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IClinicRealtimeNotifier, ClinicRealtimeNotifier>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -52,6 +56,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
             ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrWhiteSpace(accessToken) && path.StartsWithSegments("/hubs/clinic-dashboard"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -96,5 +115,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
+app.MapHub<ClinicDashboardHub>("/hubs/clinic-dashboard");
 
 app.Run();

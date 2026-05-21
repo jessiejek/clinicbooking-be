@@ -20,11 +20,13 @@ public sealed class PatientsService : IClinicPatientsService
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IClinicRealtimeNotifier _realtimeNotifier;
 
-    public PatientsService(AppDbContext dbContext, UserManager<ApplicationUser> userManager)
+    public PatientsService(AppDbContext dbContext, UserManager<ApplicationUser> userManager, IClinicRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
         _userManager = userManager;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<PagedResult<PatientSummaryDto>> GetPatientsAsync(int page, int pageSize, string? search, CancellationToken cancellationToken)
@@ -162,6 +164,7 @@ public sealed class PatientsService : IClinicPatientsService
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await _realtimeNotifier.NotifyPatientProfileUpdatedAsync(patient.Id, cancellationToken);
             return Map(patient);
         }
         catch
@@ -283,6 +286,7 @@ public sealed class PatientsService : IClinicPatientsService
             patient.UpdatedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await _realtimeNotifier.NotifyPatientProfileUpdatedAsync(patient.Id, cancellationToken);
             return Map(patient);
         }
         catch

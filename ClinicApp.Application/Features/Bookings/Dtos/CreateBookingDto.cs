@@ -1,11 +1,12 @@
 namespace ClinicApp.Application.Features.Bookings.Dtos;
 
 public sealed record CreateBookingDto(
-    Guid PatientId,
+    Guid? PatientId,
     Guid DoctorId,
-    Guid ServiceId,
+    Guid? ServiceId,
+    IReadOnlyList<Guid>? ServiceIds,
     DateOnly AppointmentDate,
     TimeOnly SlotStartTime,
     TimeOnly SlotEndTime,
-    string PaymentMode,
+    string? PaymentMode,
     string? Notes);

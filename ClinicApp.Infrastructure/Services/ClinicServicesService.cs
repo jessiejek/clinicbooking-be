@@ -11,10 +11,12 @@ namespace ClinicApp.Infrastructure.Services;
 public sealed class ClinicServicesService : IClinicServicesService
 {
     private readonly AppDbContext _dbContext;
+    private readonly IClinicRealtimeNotifier _realtimeNotifier;
 
-    public ClinicServicesService(AppDbContext dbContext)
+    public ClinicServicesService(AppDbContext dbContext, IClinicRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<IReadOnlyList<ServiceDto>> GetActiveServicesAsync(CancellationToken cancellationToken)
@@ -83,6 +85,12 @@ public sealed class ClinicServicesService : IClinicServicesService
             }
 
             await transaction.CommitAsync(cancellationToken);
+
+            if (doctorIds.Count > 0)
+            {
+                await _realtimeNotifier.NotifyDoctorServicesUpdatedAsync(doctorIds, cancellationToken);
+            }
+
             return Map(service);
         }
         catch
@@ -99,6 +107,12 @@ public sealed class ClinicServicesService : IClinicServicesService
         {
             throw new ApiException(HttpStatusCode.NotFound, "Service was not found.");
         }
+
+        var existingDoctorIds = await _dbContext.DoctorServices
+            .AsNoTracking()
+            .Where(x => x.ServiceId == service.Id)
+            .Select(x => x.DoctorId)
+            .ToListAsync(cancellationToken);
 
         var doctorIds = dto.DoctorIds?.Distinct().ToList();
         if (doctorIds is not null)
@@ -132,6 +146,12 @@ public sealed class ClinicServicesService : IClinicServicesService
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            var impactedDoctorIds = (doctorIds ?? []).Concat(existingDoctorIds).Distinct().ToList();
+            if (impactedDoctorIds.Count > 0)
+            {
+                await _realtimeNotifier.NotifyDoctorServicesUpdatedAsync(impactedDoctorIds, cancellationToken);
+            }
+
             return Map(service);
         }
         catch
@@ -149,8 +169,19 @@ public sealed class ClinicServicesService : IClinicServicesService
             throw new ApiException(HttpStatusCode.NotFound, "Service was not found.");
         }
 
+        var doctorIds = await _dbContext.DoctorServices
+            .AsNoTracking()
+            .Where(x => x.ServiceId == service.Id)
+            .Select(x => x.DoctorId)
+            .ToListAsync(cancellationToken);
+
         service.IsActive = false;
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (doctorIds.Count > 0)
+        {
+            await _realtimeNotifier.NotifyDoctorServicesUpdatedAsync(doctorIds, cancellationToken);
+        }
     }
 
     private async Task EnsureDoctorsExistAsync(IReadOnlyCollection<Guid> doctorIds, CancellationToken cancellationToken)

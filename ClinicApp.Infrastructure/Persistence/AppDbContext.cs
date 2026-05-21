@@ -22,6 +22,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<DoctorService> DoctorServices => Set<DoctorService>();
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingServiceItem> BookingServiceItems => Set<BookingServiceItem>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
@@ -197,6 +198,17 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.RescheduledFromBookingId);
             entity.Property(x => x.ReceiptUrl).HasMaxLength(500);
             entity.Property(x => x.OrNumber).HasMaxLength(50);
+            entity.Property(x => x.CheckedInAt).HasColumnType("datetime2");
+            entity.Property(x => x.CheckedInByUserId).HasMaxLength(450);
+            entity.Property(x => x.DoctorCompletedAt).HasColumnType("datetime2");
+            entity.Property(x => x.DoctorCompletedByUserId).HasMaxLength(450);
+            entity.Property(x => x.FinalAmount).HasPrecision(10, 2);
+            entity.Property(x => x.DoctorFeeNotes).HasMaxLength(2000);
+            entity.Property(x => x.SoapNotes).HasMaxLength(4000);
+            entity.Property(x => x.IsProfessionalFeeWaived).HasDefaultValue(false);
+            entity.Property(x => x.ProfessionalFeeWaivedReason).HasMaxLength(500);
+            entity.Property(x => x.ProfessionalFeeWaivedByUserId).HasMaxLength(450);
+            entity.Property(x => x.ProfessionalFeeWaivedAt).HasColumnType("datetime2");
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
             entity.HasIndex(x => x.PatientId);
@@ -207,6 +219,9 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.PaymentStatus);
             entity.HasIndex(x => x.RescheduledFromBookingId);
+            entity.HasIndex(x => x.CheckedInByUserId);
+            entity.HasIndex(x => x.DoctorCompletedByUserId);
+            entity.HasIndex(x => x.ProfessionalFeeWaivedByUserId);
             entity.HasOne(x => x.Patient)
                 .WithMany()
                 .HasForeignKey(x => x.PatientId)
@@ -222,6 +237,38 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.HasOne(x => x.RescheduledFromBooking)
                 .WithMany()
                 .HasForeignKey(x => x.RescheduledFromBookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.CheckedInByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorCompletedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.ProfessionalFeeWaivedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<BookingServiceItem>(entity =>
+        {
+            entity.ToTable("BookingServiceItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.BookingId).IsRequired();
+            entity.Property(x => x.ServiceId).IsRequired();
+            entity.Property(x => x.ServiceNameSnapshot).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.ServiceId);
+            entity.HasOne(x => x.Booking)
+                .WithMany(x => x.BookingServiceItems)
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Service)
+                .WithMany()
+                .HasForeignKey(x => x.ServiceId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

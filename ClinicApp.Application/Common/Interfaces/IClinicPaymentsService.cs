@@ -7,7 +7,9 @@ public interface IClinicPaymentsService
 {
     Task<PaymentDto> GetPaymentByBookingAsync(Guid bookingId, CancellationToken cancellationToken);
 
-    Task<PaymentDto> ConfirmPaymentAsync(Guid paymentId, ClaimsPrincipal principal, CancellationToken cancellationToken);
+    Task<ReceiptDto> ConfirmPaymentAsync(Guid paymentId, ClaimsPrincipal principal, ConfirmClinicPaymentDto dto, CancellationToken cancellationToken);
+
+    Task<ReceiptDto> GetReceiptAsync(Guid paymentId, CancellationToken cancellationToken);
 
     Task<PaymentDto> WaivePaymentAsync(Guid paymentId, ClaimsPrincipal principal, WaivePaymentDto dto, CancellationToken cancellationToken);
 

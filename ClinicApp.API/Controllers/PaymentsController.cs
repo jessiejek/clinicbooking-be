@@ -26,10 +26,21 @@ public sealed class PaymentsController : ControllerBase
 
     [Authorize(Roles = "Admin,Staff")]
     [HttpPatch("{id:guid}/confirm")]
-    public async Task<ActionResult<PaymentDto>> Confirm(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ReceiptDto>> Confirm(
+        Guid id,
+        [FromBody] ConfirmClinicPaymentDto dto,
+        CancellationToken cancellationToken)
     {
-        var payment = await _paymentsService.ConfirmPaymentAsync(id, User, cancellationToken);
-        return Ok(payment);
+        var receipt = await _paymentsService.ConfirmPaymentAsync(id, User, dto, cancellationToken);
+        return Ok(receipt);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("{id:guid}/receipt")]
+    public async Task<ActionResult<ReceiptDto>> GetReceipt(Guid id, CancellationToken cancellationToken)
+    {
+        var receipt = await _paymentsService.GetReceiptAsync(id, cancellationToken);
+        return Ok(receipt);
     }
 
     [Authorize(Roles = "Admin")]

@@ -28,15 +28,18 @@ public sealed class DoctorsService : IClinicDoctorsService
     private readonly AppDbContext _dbContext;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly IClinicRealtimeNotifier _realtimeNotifier;
 
     public DoctorsService(
         AppDbContext dbContext,
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IClinicRealtimeNotifier realtimeNotifier)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _roleManager = roleManager;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<IReadOnlyList<DoctorSummaryDto>> GetActiveDoctorsAsync(CancellationToken cancellationToken)
@@ -235,6 +238,7 @@ public sealed class DoctorsService : IClinicDoctorsService
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            await _realtimeNotifier.NotifyDoctorServicesUpdatedAsync([doctor.Id], cancellationToken);
             return await GetDoctorDetailAsync(doctor.Id, includeInactive: true, cancellationToken);
         }
         catch
@@ -311,6 +315,7 @@ public sealed class DoctorsService : IClinicDoctorsService
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            await _realtimeNotifier.NotifyDoctorServicesUpdatedAsync([doctorId], cancellationToken);
             return await LoadDoctorServicesAsync(doctorId, includeInactive: false, cancellationToken);
         }
         catch
@@ -404,6 +409,8 @@ public sealed class DoctorsService : IClinicDoctorsService
                     FormatTime(x.EndTime)))
                 .ToListAsync(cancellationToken);
 
+            await _realtimeNotifier.NotifyDoctorScheduleUpdatedAsync(doctorId, cancellationToken);
+
             return schedules
                 .OrderBy(x => GetDayOrder(x.DayOfWeek))
                 .ThenBy(x => x.StartTime)
@@ -452,6 +459,8 @@ public sealed class DoctorsService : IClinicDoctorsService
         blockedDate.Reason = TrimOrNull(dto.Reason);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _realtimeNotifier.NotifyDoctorScheduleUpdatedAsync(doctorId, cancellationToken);
+
         return new DoctorBlockedDateDto(
             Id: blockedDate.Id,
             BlockedDate: blockedDate.BlockedDate,
@@ -470,6 +479,8 @@ public sealed class DoctorsService : IClinicDoctorsService
 
         _dbContext.DoctorBlockedDates.Remove(blockedDate);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _realtimeNotifier.NotifyDoctorScheduleUpdatedAsync(doctorId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<DoctorDayStatusDto>> GetDayStatusesAsync(Guid doctorId, CancellationToken cancellationToken)
@@ -512,6 +523,8 @@ public sealed class DoctorsService : IClinicDoctorsService
             : null;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _realtimeNotifier.NotifyDoctorScheduleUpdatedAsync(doctorId, cancellationToken);
 
         return new DoctorDayStatusDto(
             Id: dayStatus.Id,
@@ -630,10 +643,12 @@ public sealed class DoctorsService : IClinicDoctorsService
 
     private async Task<IReadOnlyList<ServiceDto>> LoadDoctorServicesAsync(Guid doctorId, bool includeInactive, CancellationToken cancellationToken)
     {
-        var query = from link in _dbContext.DoctorServices.AsNoTracking()
-                    join service in _dbContext.Services.AsNoTracking() on link.ServiceId equals service.Id
-                    where link.DoctorId == doctorId
-                    select service;
+        // Services with no doctor links are treated as globally available.
+        var query = _dbContext.Services
+            .AsNoTracking()
+            .Where(service =>
+                !_dbContext.DoctorServices.Any(link => link.ServiceId == service.Id) ||
+                _dbContext.DoctorServices.Any(link => link.ServiceId == service.Id && link.DoctorId == doctorId));
 
         if (!includeInactive)
         {

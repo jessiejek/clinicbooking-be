@@ -5,22 +5,14 @@ namespace ClinicApp.Application.Features.Bookings.Validators;
 
 public sealed class CreateBookingDtoValidator : AbstractValidator<CreateBookingDto>
 {
-    private static readonly HashSet<string> AllowedPaymentModes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Online",
-        "PayAtClinic"
-    };
-
     public CreateBookingDtoValidator()
     {
-        RuleFor(x => x.PatientId)
-            .NotEmpty();
-
         RuleFor(x => x.DoctorId)
             .NotEmpty();
 
-        RuleFor(x => x.ServiceId)
-            .NotEmpty();
+        RuleFor(x => x)
+            .Must(HaveAtLeastOneService)
+            .WithMessage("At least one service must be selected.");
 
         RuleFor(x => x.AppointmentDate)
             .Must(BeTodayOrFuture)
@@ -34,12 +26,6 @@ public sealed class CreateBookingDtoValidator : AbstractValidator<CreateBookingD
             .Must((dto, end) => end > dto.SlotStartTime)
             .WithMessage("SlotEndTime must be after SlotStartTime.");
 
-        RuleFor(x => x.PaymentMode)
-            .NotEmpty()
-            .MaximumLength(20)
-            .Must(BeAllowedPaymentMode)
-            .WithMessage("PaymentMode must be Online or PayAtClinic.");
-
         RuleFor(x => x.Notes)
             .MaximumLength(2000)
             .When(x => x.Notes is not null);
@@ -50,8 +36,13 @@ public sealed class CreateBookingDtoValidator : AbstractValidator<CreateBookingD
         return value >= DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
     }
 
-    private static bool BeAllowedPaymentMode(string? value)
+    private static bool HaveAtLeastOneService(CreateBookingDto dto)
     {
-        return !string.IsNullOrWhiteSpace(value) && AllowedPaymentModes.Contains(value.Trim());
+        if (dto.ServiceIds is { Count: > 0 })
+        {
+            return dto.ServiceIds.Any(serviceId => serviceId != Guid.Empty);
+        }
+
+        return dto.ServiceId.HasValue && dto.ServiceId.Value != Guid.Empty;
     }
 }
