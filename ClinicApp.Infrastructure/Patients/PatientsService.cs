@@ -64,6 +64,8 @@ public sealed class PatientsService : IClinicPatientsService
                 x.Sex,
                 x.ContactNumber,
                 x.Email,
+                x.UserId,
+                !string.IsNullOrWhiteSpace(x.UserId),
                 x.IsGuest))
             .ToListAsync(cancellationToken);
 
@@ -380,6 +382,7 @@ public sealed class PatientsService : IClinicPatientsService
             Id: patient.Id,
             PatientCode: patient.PatientCode,
             UserId: patient.UserId,
+            HasAccount: !string.IsNullOrWhiteSpace(patient.UserId),
             FirstName: patient.FirstName,
             MiddleName: patient.MiddleName,
             LastName: patient.LastName,

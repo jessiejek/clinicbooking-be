@@ -1679,6 +1679,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 Sex: string.Empty,
                 ContactNumber: null,
                 Email: null,
+                UserId: null,
+                HasAccount: false,
                 IsGuest: false);
         }
 
@@ -1693,6 +1695,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             Sex: patient.Sex,
             ContactNumber: patient.ContactNumber,
             Email: patient.Email,
+            UserId: patient.UserId,
+            HasAccount: !string.IsNullOrWhiteSpace(patient.UserId),
             IsGuest: patient.IsGuest);
     }
 

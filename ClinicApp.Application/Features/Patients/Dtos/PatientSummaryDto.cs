@@ -11,4 +11,6 @@ public sealed record PatientSummaryDto(
     string Sex,
     string? ContactNumber,
     string? Email,
+    string? UserId,
+    bool HasAccount,
     bool IsGuest);

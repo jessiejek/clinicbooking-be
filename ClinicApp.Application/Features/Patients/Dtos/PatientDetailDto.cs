@@ -4,6 +4,7 @@ public sealed record PatientDetailDto(
     Guid Id,
     string PatientCode,
     string? UserId,
+    bool HasAccount,
     string FirstName,
     string? MiddleName,
     string LastName,
