@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
 using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Models;
@@ -48,6 +49,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
     private const string ProofTypeReferenceNumber = "ReferenceNumber";
     private const string ProofTypeScreenshot = "Screenshot";
+    private static readonly JsonSerializerOptions ClinicalDocumentJsonOptions = new(JsonSerializerDefaults.Web);
 
     private static readonly TimeSpan PhilippinesOffset = TimeSpan.FromHours(8);
     private static readonly string[] OccupyingBookingStatuses =
@@ -456,6 +458,12 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             booking.SoapNotes = TrimOrNull(dto.SoapNotes);
             booking.DoctorFeeNotes = TrimOrNull(dto.DoctorFeeNotes);
             booking.Notes = TrimOrNull(dto.Notes) ?? booking.Notes;
+            booking.Diagnosis = TrimOrNull(dto.Diagnosis);
+            booking.FollowUpDate = dto.FollowUpDate;
+            booking.FollowUpInstructions = TrimOrNull(dto.FollowUpInstructions);
+            booking.PrescriptionJson = dto.PrescriptionItems is { Count: > 0 }
+                ? JsonSerializer.Serialize(dto.PrescriptionItems, ClinicalDocumentJsonOptions)
+                : null;
             booking.DoctorCompletedAt = now;
             booking.DoctorCompletedByUserId = currentUserId;
             booking.UpdatedAt = now;
@@ -667,6 +675,10 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 FinalAmount = original.FinalAmount,
                 DoctorFeeNotes = original.DoctorFeeNotes,
                 SoapNotes = original.SoapNotes,
+                Diagnosis = original.Diagnosis,
+                PrescriptionJson = original.PrescriptionJson,
+                FollowUpDate = original.FollowUpDate,
+                FollowUpInstructions = original.FollowUpInstructions,
                 IsProfessionalFeeWaived = original.IsProfessionalFeeWaived,
                 ProfessionalFeeWaivedReason = original.ProfessionalFeeWaivedReason,
                 ProfessionalFeeWaivedByUserId = original.ProfessionalFeeWaivedByUserId,
@@ -1625,8 +1637,12 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             DoctorCompletedAt: booking.DoctorCompletedAt,
             DoctorCompletedByUserId: booking.DoctorCompletedByUserId,
             FinalAmount: booking.FinalAmount,
+            Diagnosis: booking.Diagnosis,
             DoctorFeeNotes: booking.DoctorFeeNotes,
             SoapNotes: booking.SoapNotes,
+            FollowUpDate: booking.FollowUpDate,
+            FollowUpInstructions: booking.FollowUpInstructions,
+            PrescriptionJson: booking.PrescriptionJson,
             IsProfessionalFeeWaived: booking.IsProfessionalFeeWaived,
             ProfessionalFeeWaivedReason: booking.ProfessionalFeeWaivedReason,
             ProfessionalFeeWaivedByUserId: booking.ProfessionalFeeWaivedByUserId,

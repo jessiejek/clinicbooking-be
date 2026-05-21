@@ -3,6 +3,7 @@ using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ClinicApp.Infrastructure.Seeding;
 
@@ -14,6 +15,7 @@ public sealed class BookingSeeder : IBookingSeeder
     private const string GeneralConsultationServiceName = "General Consultation";
 
     private static readonly TimeSpan PhilippinesOffset = TimeSpan.FromHours(8);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private static readonly Guid PendingBookingId = Guid.Parse("11111111-1111-1111-1111-111111111101");
     private static readonly Guid ProofSubmittedBookingId = Guid.Parse("11111111-1111-1111-1111-111111111102");
@@ -170,6 +172,36 @@ public sealed class BookingSeeder : IBookingSeeder
             IsWalkIn = false,
             ReceiptUrl = "https://example.com/receipts/seed-completed-booking.pdf",
             OrNumber = orNumber,
+            Diagnosis = "Acute upper respiratory infection",
+            SoapNotes = "S: Cough and sore throat.\nO: Afebrile, mild throat erythema.\nA: URTI.\nP: Rest, fluids, symptomatic care.",
+            DoctorFeeNotes = "Patient advised on home care and when to return.",
+            FollowUpDate = appointmentDate.AddDays(7),
+            FollowUpInstructions = "Return for follow-up if symptoms worsen or persist.",
+            PrescriptionJson = JsonSerializer.Serialize(
+                new[]
+                {
+                    new
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicineName = "Paracetamol",
+                        GenericName = "Acetaminophen",
+                        DosageForm = "Tablet",
+                        Strength = "500 mg",
+                        Sig = "Take 1 tablet every 6 hours as needed for fever or pain.",
+                        Quantity = 10,
+                        Frequency = "Every 6 hours",
+                        Duration = "5 days",
+                        Instructions = "Take after meals.",
+                        IsControlledSubstance = false,
+                        Route = "Oral",
+                        RouteDescription = "By mouth",
+                        UnitOfMeasure = "tablet",
+                        UnitOfMeasureDescription = "Tablet",
+                        BrandName = (string?)null,
+                        FrequencyCode = "Q6H"
+                    }
+                },
+                JsonOptions),
             CreatedAt = recordedAt,
             UpdatedAt = recordedAt
         };

@@ -30,8 +30,12 @@ public sealed class Booking
     public DateTime? DoctorCompletedAt { get; set; }
     public string? DoctorCompletedByUserId { get; set; }
     public decimal? FinalAmount { get; set; }
+    public string? Diagnosis { get; set; }
     public string? DoctorFeeNotes { get; set; }
     public string? SoapNotes { get; set; }
+    public string? PrescriptionJson { get; set; }
+    public DateOnly? FollowUpDate { get; set; }
+    public string? FollowUpInstructions { get; set; }
     public bool IsProfessionalFeeWaived { get; set; }
     public string? ProfessionalFeeWaivedReason { get; set; }
     public string? ProfessionalFeeWaivedByUserId { get; set; }

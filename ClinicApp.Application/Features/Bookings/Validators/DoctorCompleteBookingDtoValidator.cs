@@ -37,5 +37,76 @@ public sealed class DoctorCompleteBookingDtoValidator : AbstractValidator<Doctor
         RuleFor(x => x.Notes)
             .MaximumLength(2000)
             .When(x => x.Notes is not null);
+
+        RuleFor(x => x.Diagnosis)
+            .MaximumLength(2000)
+            .When(x => x.Diagnosis is not null);
+
+        RuleFor(x => x.FollowUpInstructions)
+            .MaximumLength(4000)
+            .When(x => x.FollowUpInstructions is not null);
+
+        RuleForEach(x => x.PrescriptionItems)
+            .ChildRules(item =>
+            {
+                item.RuleFor(x => x.MedicineName)
+                    .NotEmpty()
+                    .MaximumLength(200);
+
+                item.RuleFor(x => x.GenericName)
+                    .MaximumLength(200)
+                    .When(x => x.GenericName is not null);
+
+                item.RuleFor(x => x.DosageForm)
+                    .MaximumLength(100)
+                    .When(x => x.DosageForm is not null);
+
+                item.RuleFor(x => x.Strength)
+                    .MaximumLength(100)
+                    .When(x => x.Strength is not null);
+
+                item.RuleFor(x => x.Sig)
+                    .MaximumLength(1000)
+                    .When(x => x.Sig is not null);
+
+                item.RuleFor(x => x.Quantity)
+                    .GreaterThan(0);
+
+                item.RuleFor(x => x.Frequency)
+                    .MaximumLength(100)
+                    .When(x => x.Frequency is not null);
+
+                item.RuleFor(x => x.Duration)
+                    .MaximumLength(100)
+                    .When(x => x.Duration is not null);
+
+                item.RuleFor(x => x.Instructions)
+                    .MaximumLength(1000)
+                    .When(x => x.Instructions is not null);
+
+                item.RuleFor(x => x.Route)
+                    .MaximumLength(100)
+                    .When(x => x.Route is not null);
+
+                item.RuleFor(x => x.RouteDescription)
+                    .MaximumLength(200)
+                    .When(x => x.RouteDescription is not null);
+
+                item.RuleFor(x => x.UnitOfMeasure)
+                    .MaximumLength(100)
+                    .When(x => x.UnitOfMeasure is not null);
+
+                item.RuleFor(x => x.UnitOfMeasureDescription)
+                    .MaximumLength(200)
+                    .When(x => x.UnitOfMeasureDescription is not null);
+
+                item.RuleFor(x => x.BrandName)
+                    .MaximumLength(200)
+                    .When(x => x.BrandName is not null);
+
+                item.RuleFor(x => x.FrequencyCode)
+                    .MaximumLength(50)
+                    .When(x => x.FrequencyCode is not null);
+            });
     }
 }

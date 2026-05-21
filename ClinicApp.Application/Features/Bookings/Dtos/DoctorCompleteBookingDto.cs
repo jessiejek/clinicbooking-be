@@ -6,4 +6,8 @@ public sealed record DoctorCompleteBookingDto(
     string? ProfessionalFeeWaivedReason,
     string? SoapNotes,
     string? DoctorFeeNotes,
-    string? Notes);
+    string? Notes,
+    string? Diagnosis,
+    DateOnly? FollowUpDate,
+    string? FollowUpInstructions,
+    IReadOnlyList<DoctorCompletePrescriptionItemDto>? PrescriptionItems);

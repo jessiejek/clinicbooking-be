@@ -203,8 +203,12 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.DoctorCompletedAt).HasColumnType("datetime2");
             entity.Property(x => x.DoctorCompletedByUserId).HasMaxLength(450);
             entity.Property(x => x.FinalAmount).HasPrecision(10, 2);
+            entity.Property(x => x.Diagnosis).HasMaxLength(2000);
             entity.Property(x => x.DoctorFeeNotes).HasMaxLength(2000);
             entity.Property(x => x.SoapNotes).HasMaxLength(4000);
+            entity.Property(x => x.PrescriptionJson).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.FollowUpDate).HasColumnType("date");
+            entity.Property(x => x.FollowUpInstructions).HasMaxLength(4000);
             entity.Property(x => x.IsProfessionalFeeWaived).HasDefaultValue(false);
             entity.Property(x => x.ProfessionalFeeWaivedReason).HasMaxLength(500);
             entity.Property(x => x.ProfessionalFeeWaivedByUserId).HasMaxLength(450);

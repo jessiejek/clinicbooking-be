@@ -5,6 +5,7 @@ using ClinicApp.Infrastructure.Bookings;
 using ClinicApp.Infrastructure.Doctors;
 using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Patients;
+using ClinicApp.Infrastructure.PatientDocuments;
 using ClinicApp.Infrastructure.Persistence;
 using ClinicApp.Infrastructure.Seeding;
 using ClinicApp.Infrastructure.Services;
@@ -50,6 +51,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IClinicDoctorsService, DoctorsService>();
         services.AddScoped<IClinicBookingsService, BookingsService>();
         services.AddScoped<IClinicPaymentsService, BookingsService>();
+        services.AddScoped<IPatientDocumentsService, PatientDocumentsService>();
         services.AddScoped<IPatientSeeder, PatientSeeder>();
         services.AddScoped<IBookingSeeder, BookingSeeder>();
         services.AddScoped<IClinicPatientsService, PatientsService>();
