@@ -81,6 +81,27 @@ public sealed class BookingsController : ControllerBase
         return Ok(booking);
     }
 
+    [Authorize(Roles = "Doctor,Admin,Staff")]
+    [HttpGet("{id:guid}/consultation-record")]
+    public async Task<ActionResult<ConsultationRecordDto>> GetConsultationRecord(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var record = await _bookingsService.GetConsultationRecordAsync(id, User, cancellationToken);
+        return Ok(record);
+    }
+
+    [Authorize(Roles = "Doctor")]
+    [HttpPatch("{id:guid}/consultation-record")]
+    public async Task<ActionResult<ConsultationRecordDto>> UpdateConsultationRecord(
+        Guid id,
+        [FromBody] ConsultationRecordUpdateDto dto,
+        CancellationToken cancellationToken)
+    {
+        var record = await _bookingsService.UpdateConsultationRecordAsync(id, User, dto, cancellationToken);
+        return Ok(record);
+    }
+
     [Authorize(Roles = "Admin,Staff")]
     [HttpPatch("{id:guid}/confirm")]
     public async Task<ActionResult<BookingDetailDto>> Confirm(Guid id, CancellationToken cancellationToken)

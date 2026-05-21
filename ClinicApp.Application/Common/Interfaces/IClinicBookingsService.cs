@@ -24,6 +24,10 @@ public interface IClinicBookingsService
 
     Task<BookingDetailDto> DoctorCompleteBookingAsync(Guid id, ClaimsPrincipal principal, DoctorCompleteBookingDto dto, CancellationToken cancellationToken);
 
+    Task<ConsultationRecordDto> GetConsultationRecordAsync(Guid bookingId, ClaimsPrincipal principal, CancellationToken cancellationToken);
+
+    Task<ConsultationRecordDto> UpdateConsultationRecordAsync(Guid bookingId, ClaimsPrincipal principal, ConsultationRecordUpdateDto dto, CancellationToken cancellationToken);
+
     Task<BookingDetailDto> CompleteBookingAsync(Guid id, ClaimsPrincipal principal, CancellationToken cancellationToken);
 
     Task<BookingDetailDto> NoShowBookingAsync(Guid id, ClaimsPrincipal principal, CancellationToken cancellationToken);
