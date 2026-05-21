@@ -24,6 +24,17 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingServiceItem> BookingServiceItems => Set<BookingServiceItem>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Consultation> Consultations => Set<Consultation>();
+    public DbSet<ConsultationVitalSign> ConsultationVitalSigns => Set<ConsultationVitalSign>();
+    public DbSet<ConsultationSoapNote> ConsultationSoapNotes => Set<ConsultationSoapNote>();
+    public DbSet<ConsultationDiagnosis> ConsultationDiagnoses => Set<ConsultationDiagnosis>();
+    public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<PrescriptionItem> PrescriptionItems => Set<PrescriptionItem>();
+    public DbSet<LabOrder> LabOrders => Set<LabOrder>();
+    public DbSet<LabOrderItem> LabOrderItems => Set<LabOrderItem>();
+    public DbSet<LabResult> LabResults => Set<LabResult>();
+    public DbSet<ConsultationFollowUp> ConsultationFollowUps => Set<ConsultationFollowUp>();
+    public DbSet<PatientDocument> PatientDocuments => Set<PatientDocument>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
@@ -315,6 +326,344 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(x => x.RefundedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Consultation>(entity =>
+        {
+            entity.ToTable("Consultations");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.DoctorId);
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Open");
+            entity.Property(x => x.GeneralNotes).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.StartedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.CompletedAt).HasColumnType("datetime2");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.UpdatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasIndex(x => x.BookingId).IsUnique().HasFilter("[BookingId] IS NOT NULL");
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ConsultationVitalSign>(entity =>
+        {
+            entity.ToTable("ConsultationVitalSigns");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.SystolicBp);
+            entity.Property(x => x.DiastolicBp);
+            entity.Property(x => x.HeartRate);
+            entity.Property(x => x.RespiratoryRate);
+            entity.Property(x => x.Temperature).HasPrecision(4, 1);
+            entity.Property(x => x.OxygenSaturation);
+            entity.Property(x => x.Weight).HasPrecision(10, 2);
+            entity.Property(x => x.Height).HasPrecision(10, 2);
+            entity.Property(x => x.Bmi).HasPrecision(10, 2);
+            entity.Property(x => x.PainScore);
+            entity.Property(x => x.TakenAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.TakenByUserId).HasMaxLength(450);
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.TakenByUserId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.TakenByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ConsultationSoapNote>(entity =>
+        {
+            entity.ToTable("ConsultationSoapNotes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.ConsultationId).IsRequired();
+            entity.Property(x => x.Subjective).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Objective).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Assessment).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Plan).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.UpdatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId).IsUnique();
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithOne()
+                .HasForeignKey<ConsultationSoapNote>(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ConsultationDiagnosis>(entity =>
+        {
+            entity.ToTable("ConsultationDiagnoses");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.ConsultationId).IsRequired();
+            entity.Property(x => x.DiagnosisText).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.DiagnosisCode).HasMaxLength(100);
+            entity.Property(x => x.IsPrimary).HasDefaultValue(false);
+            entity.Property(x => x.Notes).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.ConsultationId).IsUnique().HasFilter("[IsPrimary] = 1");
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Prescription>(entity =>
+        {
+            entity.ToTable("Prescriptions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.DoctorId);
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.ConsultationId);
+            entity.Property(x => x.PrescriptionNumber).HasMaxLength(50);
+            entity.Property(x => x.Notes).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.IssuedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PrescriptionItem>(entity =>
+        {
+            entity.ToTable("PrescriptionItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PrescriptionId).IsRequired();
+            entity.Property(x => x.MedicationName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Strength).HasMaxLength(100);
+            entity.Property(x => x.Dosage).HasMaxLength(100);
+            entity.Property(x => x.Route).HasMaxLength(50);
+            entity.Property(x => x.Frequency).HasMaxLength(50);
+            entity.Property(x => x.Duration).HasMaxLength(50);
+            entity.Property(x => x.Quantity).HasMaxLength(50);
+            entity.Property(x => x.Instructions).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PrescriptionId);
+            entity.HasOne<Prescription>()
+                .WithMany()
+                .HasForeignKey(x => x.PrescriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<LabOrder>(entity =>
+        {
+            entity.ToTable("LabOrders");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.ConsultationId);
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.RequestedByDoctorId);
+            entity.Property(x => x.Notes).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Requested");
+            entity.Property(x => x.RequestedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.RequestedByDoctorId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.RequestedByDoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<LabOrderItem>(entity =>
+        {
+            entity.ToTable("LabOrderItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.LabOrderId).IsRequired();
+            entity.Property(x => x.TestName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.TestCode).HasMaxLength(50);
+            entity.Property(x => x.Instructions).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.LabOrderId);
+            entity.HasOne<LabOrder>()
+                .WithMany()
+                .HasForeignKey(x => x.LabOrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<LabResult>(entity =>
+        {
+            entity.ToTable("LabResults");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.ConsultationId);
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.LabOrderItemId);
+            entity.Property(x => x.UploadedByUserId).HasMaxLength(450);
+            entity.Property(x => x.ResultTitle).HasMaxLength(200);
+            entity.Property(x => x.ResultText).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.ResultFileUrl).HasMaxLength(500);
+            entity.Property(x => x.FileName).HasMaxLength(500);
+            entity.Property(x => x.FileContentType).HasMaxLength(100);
+            entity.Property(x => x.UploadedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Uploaded");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.LabOrderItemId);
+            entity.HasIndex(x => x.UploadedByUserId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<LabOrderItem>()
+                .WithMany()
+                .HasForeignKey(x => x.LabOrderItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ConsultationFollowUp>(entity =>
+        {
+            entity.ToTable("ConsultationFollowUps");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.ConsultationId).IsRequired();
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.FollowUpDate).IsRequired().HasColumnType("date");
+            entity.Property(x => x.Instructions).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Reason).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.UpdatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PatientDocument>(entity =>
+        {
+            entity.ToTable("PatientDocuments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.ConsultationId);
+            entity.Property(x => x.UploadedByUserId).HasMaxLength(450);
+            entity.Property(x => x.DocumentType).IsRequired().HasMaxLength(30).HasDefaultValue("Other");
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Description).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.FileUrl).HasMaxLength(500);
+            entity.Property(x => x.FileName).HasMaxLength(500);
+            entity.Property(x => x.FileContentType).HasMaxLength(100);
+            entity.Property(x => x.FileSize);
+            entity.Property(x => x.Source).IsRequired().HasMaxLength(30).HasDefaultValue("StaffUpload");
+            entity.Property(x => x.UploadedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.ConsultationId);
+            entity.HasIndex(x => x.UploadedByUserId);
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Consultation>()
+                .WithMany()
+                .HasForeignKey(x => x.ConsultationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
