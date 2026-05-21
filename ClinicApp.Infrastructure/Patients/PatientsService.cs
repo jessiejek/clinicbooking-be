@@ -141,6 +141,84 @@ public sealed class PatientsService : IClinicPatientsService
         return await UpdatePatientCoreAsync(patient, dto, allowUserIdChange: true, cancellationToken);
     }
 
+    public async Task<PatientDetailDto> CreatePortalAccountAsync(Guid id, CreatePatientPortalAccountDto dto, CancellationToken cancellationToken)
+    {
+        var email = TrimOrNull(dto.Email);
+        var temporaryPassword = TrimOrNull(dto.TemporaryPassword);
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Email is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(temporaryPassword))
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Temporary password is required.");
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var patient = await LoadPatientAsync(id, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(patient.UserId))
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, "Patient already has a portal account.");
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(email);
+            existingUser ??= await _userManager.FindByNameAsync(email);
+            if (existingUser is not null)
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, "Email is already used by another account.");
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,
+                FullName = BuildFullName(patient.FirstName, patient.MiddleName, patient.LastName),
+                Role = "Patient",
+                AvatarUrl = null,
+                AuthProvider = "Local",
+                IsActive = true,
+                IsFirstLogin = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var createResult = await _userManager.CreateAsync(user, temporaryPassword);
+            if (!createResult.Succeeded)
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, string.Join("; ", createResult.Errors.Select(x => x.Description)));
+            }
+
+            var roleResult = await _userManager.AddToRoleAsync(user, "Patient");
+            if (!roleResult.Succeeded)
+            {
+                throw new ApiException(HttpStatusCode.BadRequest, string.Join("; ", roleResult.Errors.Select(x => x.Description)));
+            }
+
+            patient.UserId = user.Id;
+            patient.IsGuest = false;
+            if (string.IsNullOrWhiteSpace(patient.Email))
+            {
+                patient.Email = email;
+            }
+
+            patient.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            await _realtimeNotifier.NotifyPatientProfileUpdatedAsync(patient.Id, cancellationToken);
+            return Map(patient);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
     public async Task<PatientDetailDto> GetMyPatientAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var patient = await LoadCurrentPatientAsync(principal, cancellationToken);
@@ -407,12 +485,16 @@ public sealed class PatientsService : IClinicPatientsService
             ConsentVersion: patient.ConsentVersion,
             CreatedAt: patient.CreatedAt,
             UpdatedAt: patient.UpdatedAt,
-            FullName: BuildFullName(patient.FirstName, patient.LastName));
+            FullName: BuildFullName(patient.FirstName, patient.MiddleName, patient.LastName));
     }
 
-    private static string BuildFullName(string firstName, string lastName)
+    private static string BuildFullName(string firstName, string? middleName, string lastName)
     {
-        return $"{firstName.Trim()} {lastName.Trim()}";
+        var parts = new[] { firstName, middleName, lastName }
+            .Select(part => part?.Trim())
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+
+        return string.Join(" ", parts);
     }
 
     private static string NormalizeSex(string value)

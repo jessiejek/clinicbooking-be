@@ -14,6 +14,8 @@ public interface IClinicPatientsService
 
     Task<PatientDetailDto> UpdatePatientAsync(Guid id, UpdatePatientDto dto, CancellationToken cancellationToken);
 
+    Task<PatientDetailDto> CreatePortalAccountAsync(Guid id, CreatePatientPortalAccountDto dto, CancellationToken cancellationToken);
+
     Task<PatientDetailDto> GetMyPatientAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
 
     Task<PatientDetailDto> UpdateMyPatientAsync(ClaimsPrincipal principal, UpdatePatientDto dto, CancellationToken cancellationToken);

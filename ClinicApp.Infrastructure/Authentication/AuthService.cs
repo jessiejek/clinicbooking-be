@@ -187,9 +187,9 @@ public sealed class AuthService : IAuthService
             throw new ApiException(HttpStatusCode.Unauthorized, "Unauthorized.");
         }
 
-        if (!user.IsFirstLogin || (user.Role is not "Staff" and not "Doctor"))
+        if (!user.IsFirstLogin || (user.Role is not "Staff" and not "Doctor" and not "Patient"))
         {
-            throw new ApiException(HttpStatusCode.Forbidden, "This action is only available for first-login staff or doctor accounts.");
+            throw new ApiException(HttpStatusCode.Forbidden, "This action is only available for first-login staff, doctor, or patient accounts.");
         }
 
         var hasPassword = await _userManager.HasPasswordAsync(user);

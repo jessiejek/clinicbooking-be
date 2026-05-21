@@ -58,6 +58,17 @@ public sealed class PatientsController : ControllerBase
         return Ok(patient);
     }
 
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpPost("{id:guid}/portal-account")]
+    public async Task<ActionResult<PatientDetailDto>> CreatePortalAccount(
+        Guid id,
+        [FromBody] CreatePatientPortalAccountDto dto,
+        CancellationToken cancellationToken)
+    {
+        var patient = await _patientsService.CreatePortalAccountAsync(id, dto, cancellationToken);
+        return Ok(patient);
+    }
+
     [Authorize(Roles = "Patient")]
     [HttpGet("me")]
     public async Task<ActionResult<PatientDetailDto>> GetMe(CancellationToken cancellationToken)
