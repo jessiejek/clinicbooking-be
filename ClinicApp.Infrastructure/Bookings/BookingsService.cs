@@ -6,6 +6,7 @@ using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Models;
 using ClinicApp.Application.Features.Bookings.Dtos;
+using ClinicApp.Application.Features.Dashboard.Dtos;
 using ClinicApp.Application.Features.Doctors.Dtos;
 using ClinicApp.Application.Features.Patients.Dtos;
 using ClinicApp.Application.Features.PatientDocuments.Dtos;
@@ -1118,6 +1119,85 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             .ToListAsync(cancellationToken);
 
         return bookings.Select(MapSummary).ToList();
+    }
+
+    public async Task<AdminDashboardSummaryDto> GetAdminDashboardSummaryAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var monthStart = from ?? new DateOnly(today.Year, today.Month, 1);
+        var monthEnd = to ?? monthStart.AddMonths(1).AddDays(-1);
+
+        var todayBookings = await IncludeSummaryNavigations(_dbContext.Bookings.AsNoTracking())
+            .Where(x => x.AppointmentDate == today)
+            .ToListAsync(cancellationToken);
+
+        var monthBookings = await _dbContext.Bookings.AsNoTracking()
+            .Include(x => x.Payment)
+            .Include(x => x.Doctor)
+            .Where(x => x.AppointmentDate >= monthStart && x.AppointmentDate <= monthEnd)
+            .ToListAsync(cancellationToken);
+
+        var totalAppointmentsToday = todayBookings.Count;
+        var pendingAppointments = todayBookings.Count(x => x.Status == BookingStatusPending);
+        var checkedInToday = todayBookings.Count(x => x.Status == BookingStatusCheckedIn);
+        var completedToday = todayBookings.Count(x => x.Status == BookingStatusCompleted);
+
+        var unpaidCount = todayBookings.Count(x => x.PaymentStatus == "Unpaid");
+        var paidCount = todayBookings.Count(x => x.PaymentStatus == "Paid");
+
+        var paidBookings = monthBookings
+            .Where(x => x.Payment?.Status == "Paid" && x.FinalAmount.HasValue)
+            .ToList();
+        var revenueThisMonth = paidBookings.Sum(x => x.FinalAmount ?? 0);
+
+        var revenueTrend = monthBookings
+            .Where(x => x.Payment?.Status == "Paid" && x.FinalAmount.HasValue)
+            .GroupBy(x => x.AppointmentDate.ToString("yyyy-MM-dd"))
+            .Select(g => new RevenueTrendItem(
+                DateTime.Parse(g.Key).ToString("MMM d"),
+                g.Key,
+                g.Sum(x => x.FinalAmount ?? 0)))
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        var mostBookedDoctors = monthBookings
+            .Where(x => x.Status != BookingStatusCancelled && x.Status != BookingStatusNoShow)
+            .GroupBy(x => new { x.DoctorId, DoctorName = x.Doctor?.FullName ?? "Unknown", Specialization = x.Doctor?.Specialization ?? "" })
+            .Select(g => new MostBookedDoctorItem(g.Key.DoctorId, g.Key.DoctorName, g.Key.Specialization, g.Count()))
+            .OrderByDescending(x => x.BookingCount)
+            .Take(5)
+            .ToList();
+
+        var todaysAppointments = todayBookings.Select(b => new TodayAppointmentItem(
+            b.Id,
+            b.QueueNumber,
+            b.PatientId,
+            b.Patient != null ? BuildFullName(b.Patient.FirstName, b.Patient.LastName) : "Unknown Patient",
+            b.DoctorId,
+            b.Doctor?.FullName ?? "Unknown Doctor",
+            b.ServiceId,
+            b.Service?.Name ?? "",
+            b.BookingServiceItems.Select(si => si.Service?.Name ?? "").ToList(),
+            b.SlotStartTime.ToString("HH:mm"),
+            b.SlotEndTime.ToString("HH:mm"),
+            b.Status,
+            b.PaymentStatus,
+            b.PaymentMode,
+            b.TotalFee,
+            b.FinalAmount
+        )).ToList();
+
+        return new AdminDashboardSummaryDto(
+            totalAppointmentsToday,
+            pendingAppointments,
+            checkedInToday,
+            completedToday,
+            unpaidCount,
+            paidCount,
+            revenueThisMonth,
+            revenueTrend,
+            mostBookedDoctors,
+            todaysAppointments);
     }
 
     public async Task<PaymentDto> GetPaymentByBookingAsync(Guid bookingId, CancellationToken cancellationToken)

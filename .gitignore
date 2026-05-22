@@ -41,3 +41,6 @@ Desktop.ini
 node_modules/
 dist/
 coverage/
+
+# Zip files
+*.zip

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ClinicApp.Application.Common.Models;
+using ClinicApp.Application.Features.Dashboard.Dtos;
 using ClinicApp.Application.Features.Bookings.Dtos;
 
 namespace ClinicApp.Application.Common.Interfaces;
@@ -49,4 +50,6 @@ public interface IClinicBookingsService
     Task<PagedResult<StaffForPaymentDto>> GetStaffBookingsForPaymentAsync(int page, int pageSize, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<BookingSummaryDto>> GetPendingVerificationBookingsAsync(CancellationToken cancellationToken);
+
+    Task<AdminDashboardSummaryDto> GetAdminDashboardSummaryAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken);
 }
