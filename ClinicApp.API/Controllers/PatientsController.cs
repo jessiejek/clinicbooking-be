@@ -1,6 +1,7 @@
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Models;
 using ClinicApp.Application.Features.Patients.Dtos;
+using ClinicApp.Application.Features.PatientMedia.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +12,12 @@ namespace ClinicApp.API.Controllers;
 public sealed class PatientsController : ControllerBase
 {
     private readonly IClinicPatientsService _patientsService;
+    private readonly IPatientMediaService _patientMediaService;
 
-    public PatientsController(IClinicPatientsService patientsService)
+    public PatientsController(IClinicPatientsService patientsService, IPatientMediaService patientMediaService)
     {
         _patientsService = patientsService;
+        _patientMediaService = patientMediaService;
     }
 
     [Authorize(Roles = "Admin,Staff")]
@@ -95,5 +98,179 @@ public sealed class PatientsController : ControllerBase
     {
         var patient = await _patientsService.ConsentAsync(User, dto, cancellationToken);
         return Ok(patient);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Doctor,Patient")]
+    [HttpGet("{patientId:guid}/documents")]
+    public async Task<ActionResult<IReadOnlyList<PatientDocumentDto>>> GetPatientDocuments(
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var documents = await _patientMediaService.GetPatientDocumentsAsync(patientId, User, cancellationToken);
+        return Ok(documents);
+    }
+
+    [Authorize(Roles = "Patient")]
+    [HttpGet("me/documents")]
+    public async Task<ActionResult<IReadOnlyList<PatientDocumentDto>>> GetMyDocuments(CancellationToken cancellationToken)
+    {
+        var documents = await _patientMediaService.GetMyDocumentsAsync(User, cancellationToken);
+        return Ok(documents);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Patient")]
+    [Consumes("multipart/form-data")]
+    [HttpPost("{patientId:guid}/documents")]
+    public async Task<ActionResult<PatientDocumentDto>> CreatePatientDocument(
+        Guid patientId,
+        [FromForm] Guid? bookingId,
+        [FromForm] Guid? consultationId,
+        [FromForm] string? documentType,
+        [FromForm] string? title,
+        [FromForm] string? description,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var document = await _patientMediaService.CreatePatientDocumentAsync(
+            patientId,
+            new PatientDocumentUploadInput(
+                bookingId,
+                consultationId,
+                documentType,
+                title,
+                description,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                file.OpenReadStream()),
+            User,
+            cancellationToken);
+
+        return Ok(document);
+    }
+
+    [Authorize(Roles = "Patient")]
+    [Consumes("multipart/form-data")]
+    [HttpPost("me/documents")]
+    public async Task<ActionResult<PatientDocumentDto>> CreateMyDocument(
+        [FromForm] Guid? bookingId,
+        [FromForm] Guid? consultationId,
+        [FromForm] string? documentType,
+        [FromForm] string? title,
+        [FromForm] string? description,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var document = await _patientMediaService.CreateMyDocumentAsync(
+            new PatientDocumentUploadInput(
+                bookingId,
+                consultationId,
+                documentType,
+                title,
+                description,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                file.OpenReadStream()),
+            User,
+            cancellationToken);
+
+        return Ok(document);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Doctor,Patient")]
+    [HttpGet("{patientId:guid}/documents/{documentId:guid}/file")]
+    public async Task<IActionResult> DownloadPatientDocumentFile(
+        Guid patientId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        var file = await _patientMediaService.DownloadPatientDocumentFileAsync(patientId, documentId, User, cancellationToken);
+        return File(file.Content, file.ContentType, file.FileName);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Doctor,Patient")]
+    [HttpGet("{patientId:guid}/lab-results")]
+    public async Task<ActionResult<IReadOnlyList<PatientLabResultDto>>> GetPatientLabResults(
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var labResults = await _patientMediaService.GetPatientLabResultsAsync(patientId, User, cancellationToken);
+        return Ok(labResults);
+    }
+
+    [Authorize(Roles = "Patient")]
+    [HttpGet("me/lab-results")]
+    public async Task<ActionResult<IReadOnlyList<PatientLabResultDto>>> GetMyLabResults(CancellationToken cancellationToken)
+    {
+        var labResults = await _patientMediaService.GetMyLabResultsAsync(User, cancellationToken);
+        return Ok(labResults);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Patient")]
+    [Consumes("multipart/form-data")]
+    [HttpPost("{patientId:guid}/lab-results")]
+    public async Task<ActionResult<PatientLabResultDto>> CreatePatientLabResult(
+        Guid patientId,
+        [FromForm] Guid? bookingId,
+        [FromForm] Guid? consultationId,
+        [FromForm] string? resultTitle,
+        [FromForm] string? resultText,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var labResult = await _patientMediaService.CreatePatientLabResultAsync(
+            patientId,
+            new PatientLabResultUploadInput(
+                bookingId,
+                consultationId,
+                resultTitle,
+                resultText,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                file.OpenReadStream()),
+            User,
+            cancellationToken);
+
+        return Ok(labResult);
+    }
+
+    [Authorize(Roles = "Patient")]
+    [Consumes("multipart/form-data")]
+    [HttpPost("me/lab-results")]
+    public async Task<ActionResult<PatientLabResultDto>> CreateMyLabResult(
+        [FromForm] Guid? bookingId,
+        [FromForm] Guid? consultationId,
+        [FromForm] string? resultTitle,
+        [FromForm] string? resultText,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var labResult = await _patientMediaService.CreateMyLabResultAsync(
+            new PatientLabResultUploadInput(
+                bookingId,
+                consultationId,
+                resultTitle,
+                resultText,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                file.OpenReadStream()),
+            User,
+            cancellationToken);
+
+        return Ok(labResult);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Doctor,Patient")]
+    [HttpGet("{patientId:guid}/lab-results/{labResultId:guid}/file")]
+    public async Task<IActionResult> DownloadPatientLabResultFile(
+        Guid patientId,
+        Guid labResultId,
+        CancellationToken cancellationToken)
+    {
+        var file = await _patientMediaService.DownloadPatientLabResultFileAsync(patientId, labResultId, User, cancellationToken);
+        return File(file.Content, file.ContentType, file.FileName);
     }
 }

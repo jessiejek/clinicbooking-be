@@ -605,23 +605,23 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
             var now = DateTime.UtcNow;
             var completeDto = new DoctorCompleteBookingDto(
-                null,
-                false,
-                null,
-                dto.GeneralNotes,
-                dto.SoapNotes,
-                dto.DoctorFeeNotes,
-                dto.Notes,
-                dto.Diagnosis,
-                dto.FollowUpDate,
-                dto.FollowUpInstructions,
-                dto.VitalSigns,
-                dto.Soap,
-                dto.Diagnoses,
-                dto.Prescription,
-                dto.LabOrders,
-                dto.FollowUp,
-                dto.PrescriptionItems);
+                FinalAmount: null,
+                IsProfessionalFeeWaived: false,
+                ProfessionalFeeWaivedReason: null,
+                GeneralNotes: dto.GeneralNotes,
+                SoapNotes: dto.SoapNotes,
+                DoctorFeeNotes: dto.DoctorFeeNotes,
+                Notes: dto.Notes,
+                Diagnosis: dto.Diagnosis,
+                FollowUpDate: dto.FollowUpDate,
+                FollowUpInstructions: dto.FollowUpInstructions,
+                VitalSigns: dto.VitalSigns,
+                Soap: dto.Soap,
+                Diagnoses: dto.Diagnoses,
+                Prescription: dto.Prescription,
+                LabOrders: dto.LabOrders,
+                FollowUp: dto.FollowUp,
+                PrescriptionItems: dto.PrescriptionItems);
 
             var consultation = await UpsertConsultationAsync(
                 booking,

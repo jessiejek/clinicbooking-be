@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BaseIntermediateOutputPath>D:\PROJECT AI\clinic1a-be\_tmp-swagger-repro-artifacts\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>D:\PROJECT AI\clinic1a-be\_tmp-swagger-repro-artifacts\bin\</BaseOutputPath>
+    <MSBuildProjectExtensionsPath>D:\PROJECT AI\clinic1a-be\_tmp-swagger-repro-artifacts\obj\</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="ClinicApp.API">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\ClinicApp.API.dll</HintPath>
+    </Reference>
+    <Reference Include="ClinicApp.Application">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\ClinicApp.Application.dll</HintPath>
+    </Reference>
+    <Reference Include="ClinicApp.Domain">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\ClinicApp.Domain.dll</HintPath>
+    </Reference>
+    <Reference Include="ClinicApp.Infrastructure">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\ClinicApp.Infrastructure.dll</HintPath>
+    </Reference>
+    <Reference Include="Swashbuckle.AspNetCore.Swagger">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll</HintPath>
+    </Reference>
+    <Reference Include="Swashbuckle.AspNetCore.SwaggerGen">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.OpenApi">
+      <HintPath>D:\PROJECT AI\clinic1a-be\ClinicApp.API\bin\Debug\net8.0\Microsoft.OpenApi.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
