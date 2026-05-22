@@ -38,6 +38,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
+    public DbSet<PatientVaccination> PatientVaccinations => Set<PatientVaccination>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -698,6 +699,79 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PatientVaccination>(entity =>
+        {
+            entity.ToTable("PatientVaccinations");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.BookingId);
+            entity.Property(x => x.ConsultationId);
+            entity.Property(x => x.DoctorId);
+            entity.Property(x => x.AdministeredByUserId).HasMaxLength(450);
+
+            // Vaccine details
+            entity.Property(x => x.VaccineName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.VaccineCode).HasMaxLength(50);
+            entity.Property(x => x.Manufacturer).HasMaxLength(200);
+            entity.Property(x => x.LotNumber).HasMaxLength(100);
+            entity.Property(x => x.ExpirationDate).HasColumnType("date");
+
+            // Administration
+            entity.Property(x => x.AdministeredDate).IsRequired().HasColumnType("date");
+            entity.Property(x => x.DoseNumber).HasMaxLength(20);
+            entity.Property(x => x.DoseAmount).HasPrecision(10, 2);
+            entity.Property(x => x.DoseUnit).HasMaxLength(30);
+            entity.Property(x => x.Route).HasMaxLength(50);
+            entity.Property(x => x.Site).HasMaxLength(50);
+
+            // Status / source
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Completed");
+            entity.Property(x => x.Source).IsRequired().HasMaxLength(30).HasDefaultValue("AdministeredInClinic");
+
+            // Follow-up
+            entity.Property(x => x.NextDueDate).HasColumnType("date");
+
+            // VIS
+            entity.Property(x => x.VisEditionDate).HasColumnType("date");
+            entity.Property(x => x.VisProvidedDate).HasColumnType("date");
+
+            // Notes
+            entity.Property(x => x.Notes).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.ReactionNotes).HasColumnType("nvarchar(max)");
+
+            // Audit
+            entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.UpdatedAt).IsRequired().HasColumnType("datetime2");
+            entity.Property(x => x.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(x => x.PatientId);
+            entity.HasIndex(x => x.BookingId);
+            entity.HasIndex(x => x.DoctorId);
+            entity.HasIndex(x => x.CreatedByUserId);
+
+            entity.HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ClinicSettings>(entity =>
