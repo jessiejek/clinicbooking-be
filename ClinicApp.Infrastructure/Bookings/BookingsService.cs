@@ -1028,6 +1028,43 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         return bookings.Select(MapSummary).ToList();
     }
 
+    public async Task<IReadOnlyList<DoctorPatientSummaryDto>> GetDoctorPatientsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
+    {
+        var doctor = await GetCurrentDoctorAsync(principal, cancellationToken);
+
+        var bookings = await IncludeSummaryNavigations(_dbContext.Bookings.AsNoTracking())
+            .Where(x => x.DoctorId == doctor.Id)
+            .OrderByDescending(x => x.AppointmentDate)
+            .ThenBy(x => x.SlotStartTime)
+            .ToListAsync(cancellationToken);
+
+        // Deduplicate by patient — take the latest booking per patient
+        var latestPerPatient = bookings
+            .GroupBy(x => x.PatientId)
+            .Select(g => g.First())
+            .OrderByDescending(x => x.AppointmentDate)
+            .ToList();
+
+        return latestPerPatient.Select(MapDoctorPatient).ToList();
+    }
+
+    private static DoctorPatientSummaryDto MapDoctorPatient(Booking booking)
+    {
+        var serviceItems = BuildServiceItems(booking);
+        var serviceNames = serviceItems.Select(x => x.ServiceName).ToList();
+
+        return new DoctorPatientSummaryDto(
+            PatientId: booking.PatientId,
+            PatientName: BuildPatientName(booking.Patient, booking.PatientId),
+            PatientCode: booking.Patient?.PatientCode,
+            LatestDate: booking.AppointmentDate.ToString("yyyy-MM-dd"),
+            LatestTime: booking.SlotStartTime.ToString(),
+            Services: string.Join(", ", serviceNames),
+            Status: booking.Status,
+            QueueNumber: booking.QueueNumber,
+            LatestBookingId: booking.Id);
+    }
+
     public async Task<PagedResult<BookingSummaryDto>> GetStaffTodayBookingsAsync(
         Guid? doctorId,
         string? status,

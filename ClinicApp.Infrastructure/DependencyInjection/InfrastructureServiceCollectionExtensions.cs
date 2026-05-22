@@ -7,6 +7,7 @@ using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Patients;
 using ClinicApp.Infrastructure.PatientDocuments;
 using ClinicApp.Infrastructure.PatientMedia;
+using ClinicApp.Infrastructure.PatientClinicalHistory;
 using ClinicApp.Infrastructure.PatientVaccinations;
 using ClinicApp.Infrastructure.Persistence;
 using ClinicApp.Infrastructure.Seeding;
@@ -61,6 +62,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IClinicServicesService, ClinicServicesService>();
         services.AddScoped<IClinicSeeder, ClinicSeeder>();
         services.AddScoped<IPatientVaccinationsService, PatientVaccinationsService>();
+        services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
 
         return services;
     }

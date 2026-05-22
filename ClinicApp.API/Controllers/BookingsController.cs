@@ -194,6 +194,14 @@ public sealed class BookingsController : ControllerBase
         return Ok(bookings);
     }
 
+    [Authorize(Roles = "Doctor")]
+    [HttpGet("doctor/patients")]
+    public async Task<ActionResult<IReadOnlyList<DoctorPatientSummaryDto>>> GetDoctorPatients(CancellationToken cancellationToken)
+    {
+        var patients = await _bookingsService.GetDoctorPatientsAsync(User, cancellationToken);
+        return Ok(patients);
+    }
+
     [Authorize(Roles = "Admin,Staff")]
     [HttpGet("staff/today")]
     public async Task<ActionResult<PagedResult<BookingSummaryDto>>> GetStaffToday(

@@ -1,6 +1,7 @@
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Common.Models;
 using ClinicApp.Application.Features.Patients.Dtos;
+using ClinicApp.Application.Features.PatientClinicalHistory.Dtos;
 using ClinicApp.Application.Features.PatientMedia.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,13 @@ public sealed class PatientsController : ControllerBase
 {
     private readonly IClinicPatientsService _patientsService;
     private readonly IPatientMediaService _patientMediaService;
+    private readonly IPatientClinicalHistoryService _clinicalHistoryService;
 
-    public PatientsController(IClinicPatientsService patientsService, IPatientMediaService patientMediaService)
+    public PatientsController(IClinicPatientsService patientsService, IPatientMediaService patientMediaService, IPatientClinicalHistoryService clinicalHistoryService)
     {
         _patientsService = patientsService;
         _patientMediaService = patientMediaService;
+        _clinicalHistoryService = clinicalHistoryService;
     }
 
     [Authorize(Roles = "Admin,Staff")]
@@ -261,6 +264,19 @@ public sealed class PatientsController : ControllerBase
             cancellationToken);
 
         return Ok(labResult);
+    }
+
+    [Authorize(Roles = "Admin,Staff,Doctor")]
+    [HttpGet("{patientId:guid}/clinical-history")]
+    public async Task<ActionResult<PatientClinicalHistoryDto>> GetPatientClinicalHistory(
+        Guid patientId,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] Guid? bookingId,
+        CancellationToken cancellationToken)
+    {
+        var history = await _clinicalHistoryService.GetPatientClinicalHistoryAsync(patientId, User, from, to, bookingId, cancellationToken);
+        return Ok(history);
     }
 
     [Authorize(Roles = "Admin,Staff,Doctor,Patient")]

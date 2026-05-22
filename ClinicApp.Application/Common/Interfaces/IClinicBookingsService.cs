@@ -45,6 +45,8 @@ public interface IClinicBookingsService
 
     Task<IReadOnlyList<BookingSummaryDto>> GetDoctorUpcomingBookingsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<DoctorPatientSummaryDto>> GetDoctorPatientsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
+
     Task<PagedResult<BookingSummaryDto>> GetStaffTodayBookingsAsync(Guid? doctorId, string? status, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<PagedResult<StaffForPaymentDto>> GetStaffBookingsForPaymentAsync(int page, int pageSize, CancellationToken cancellationToken);
