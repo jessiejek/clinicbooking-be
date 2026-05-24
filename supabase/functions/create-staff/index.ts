@@ -18,22 +18,32 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // ---- Verify caller is authenticated ----
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } },
-    );
-
-    const { data: { user: caller }, error: authError } = await supabase.auth.getUser();
-    if (authError || !caller) {
-      return errorResponse('Authentication required.', 401, headers);
+    // ---- 1. Read Authorization header ----
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return errorResponse('Missing Authorization header.', 401, headers);
     }
 
-    // ---- Create admin client with service_role ----
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // ---- 2. Validate caller via anon client ----
+    const anonClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+    );
+
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const { data: { user: caller }, error: authError } = await anonClient.auth.getUser(token);
+
+    if (authError || !caller) {
+      return errorResponse('Authentication failed. Invalid or expired token.', 401, headers);
+    }
+
+    // ---- 3. Create admin client with service_role ----
+    const serviceRoleKey =
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ??
+      Deno.env.get('SERVICE_ROLE_KEY');
+
     if (!serviceRoleKey) {
-      return errorResponse('Server configuration error: service_role key not set.', 500, headers);
+      return errorResponse('Edge Function service role is not configured.', 500, headers);
     }
 
     const adminClient = createClient(
@@ -42,7 +52,7 @@ serve(async (req: Request): Promise<Response> => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // ---- Verify caller is admin or super_admin ----
+    // ---- 4. Verify caller is admin or super_admin ----
     const { data: callerRoles, error: rolesError } = await adminClient
       .from('user_roles')
       .select('role')
@@ -52,12 +62,22 @@ serve(async (req: Request): Promise<Response> => {
       return errorResponse('Could not verify caller permissions.', 403, headers);
     }
 
-    const allowedRoles = callerRoles?.map(r => r.role) ?? [];
-    if (!allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
-      return errorResponse('Access denied. Only admin or super_admin can create staff.', 403, headers);
+    const normalizedRoles = (callerRoles ?? []).map(
+      r => String(r.role).toLowerCase()
+    );
+
+    const isAllowed = normalizedRoles.includes('admin') || normalizedRoles.includes('super_admin');
+    if (!isAllowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'Admin or super_admin role required',
+          userId: caller.id,
+        }),
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
 
-    // ---- Validate input ----
+    // ---- 5. Validate input ----
     const body: CreateStaffPayload = await req.json();
 
     if (!body.email?.trim()) {
@@ -72,7 +92,7 @@ serve(async (req: Request): Promise<Response> => {
     const password = body.password?.trim() || crypto.randomUUID().slice(0, 12); // auto-generate if not provided
     const phone = body.phone?.trim() || null;
 
-    // ---- Create auth user ----
+    // ---- 6. Create auth user ----
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -99,9 +119,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const userId = newUser.user.id;
 
-    // ---- Insert/update profile row ----
-    // The trigger `on_auth_user_created` may already have created a basic profile,
-    // so we UPSERT to ensure full_name and phone are set correctly.
+    // ---- 7. Insert/update profile row ----
     const { error: profileError } = await adminClient
       .from('profiles')
       .upsert({
@@ -112,11 +130,10 @@ serve(async (req: Request): Promise<Response> => {
       }, { onConflict: 'id', ignoreDuplicates: false });
 
     if (profileError) {
-      // Non-fatal: log but don't fail the whole request
       console.error('Profile upsert warning:', profileError.message);
     }
 
-    // ---- Insert staff role ----
+    // ---- 8. Insert staff role ----
     const { error: roleInsertError } = await adminClient
       .from('user_roles')
       .insert({
@@ -134,7 +151,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // ---- Return safe response (no password) ----
+    // ---- 9. Return safe response (no password, no secrets) ----
     return new Response(
       JSON.stringify({
         userId,

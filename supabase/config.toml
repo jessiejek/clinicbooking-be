@@ -1,3 +1,5 @@
+project_id = "czswgpjjanllkmmwhmdh"
+
 [api]
 enabled = true
 port = 54321
@@ -12,11 +14,8 @@ enabled = true
 enabled = true
 policy = "per_worker"
 
-[functions]
-enabled = true
-
 [functions.create-staff]
-enabled = true
+verify_jwt = true
 
 [functions.update-staff-status]
-enabled = true
+verify_jwt = true

@@ -6,6 +6,9 @@
 **/.build/
 **/.tmp/
 
+# Supabase CLI local state
+supabase/.temp/
+
 # Visual Studio / IDE
 .vs/
 *.user
