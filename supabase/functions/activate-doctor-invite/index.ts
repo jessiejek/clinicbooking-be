@@ -162,6 +162,23 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // 5f. Create doctor_services rows from invite.service_ids if present
+    if (doctorId && Array.isArray(invite.service_ids) && invite.service_ids.length > 0) {
+      const serviceRows = invite.service_ids.map((serviceId: string) => ({
+        doctor_id: doctorId,
+        service_id: serviceId,
+      }));
+
+      const { error: servicesError } = await adminClient
+        .from('doctor_services')
+        .upsert(serviceRows, { onConflict: 'doctor_id, service_id', ignoreDuplicates: true });
+
+      if (servicesError) {
+        console.error('Doctor services insert error:', servicesError.message);
+        // Non-fatal: doctor was already created, services can be assigned manually
+      }
+    }
+
     // 5d. Mark doctor invite as accepted
     const inviteUpdatePayload: Record<string, unknown> = {
       status: 'accepted',
