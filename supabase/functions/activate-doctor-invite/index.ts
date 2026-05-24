@@ -143,6 +143,25 @@ serve(async (req: Request): Promise<Response> => {
 
     const doctorId = doctorRow?.id;
 
+    // 5e. Create doctor_schedules rows from invite schedule JSON if present
+    if (doctorId && Array.isArray(invite.schedule) && invite.schedule.length > 0) {
+      const scheduleRows = invite.schedule.map((entry: Record<string, unknown>) => ({
+        doctor_id: doctorId,
+        day_of_week: String(entry['dayOfWeek'] ?? entry['day_of_week'] ?? 'Monday'),
+        start_time: String(entry['startTime'] ?? entry['start_time'] ?? '08:00'),
+        end_time: String(entry['endTime'] ?? entry['end_time'] ?? '17:00'),
+      }));
+
+      const { error: scheduleError } = await adminClient
+        .from('doctor_schedules')
+        .insert(scheduleRows);
+
+      if (scheduleError) {
+        console.error('Doctor schedule insert error:', scheduleError.message);
+        // Non-fatal: doctor was already created, schedule can be set manually
+      }
+    }
+
     // 5d. Mark doctor invite as accepted
     const inviteUpdatePayload: Record<string, unknown> = {
       status: 'accepted',
