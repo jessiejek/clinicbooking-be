@@ -86,6 +86,8 @@ serve(async (req: Request): Promise<Response> => {
     const profileFullName = callerMetadata['full_name'] ?? invite.full_name ?? callerEmail;
     const avatarUrl = callerMetadata['avatar_url'] ?? callerMetadata['picture'] ?? null;
 
+    // Note: profiles table does NOT have an is_active column.
+    // If is_active tracking is needed, first add the column via ALTER TABLE.
     const { error: profileError } = await adminClient
       .from('profiles')
       .upsert({
@@ -93,7 +95,6 @@ serve(async (req: Request): Promise<Response> => {
         email: callerEmail,
         full_name: profileFullName,
         avatar_url: avatarUrl,
-        is_active: true,
       }, { onConflict: 'id', ignoreDuplicates: false });
 
     if (profileError) {

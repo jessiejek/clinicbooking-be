@@ -11,8 +11,11 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('activate-staff-invite: function started');
+
     // ---- 1. Read Authorization header ----
     const authHeader = req.headers.get('Authorization');
+    console.log('activate-staff-invite: authHeader present:', !!authHeader);
     if (!authHeader) {
       return errorResponse('Missing Authorization header.', 401, headers);
     }
@@ -27,13 +30,16 @@ serve(async (req: Request): Promise<Response> => {
     const { data: { user: caller }, error: authError } = await anonClient.auth.getUser(token);
 
     if (authError || !caller) {
+      console.log('activate-staff-invite: auth failed', authError?.message);
       return errorResponse('Authentication failed. Invalid or expired token.', 401, headers);
     }
+    console.log('activate-staff-invite: caller authenticated:', caller.id);
 
     const callerEmail = caller.email?.trim().toLowerCase();
     if (!callerEmail) {
       return errorResponse('Authenticated user has no email address.', 400, headers);
     }
+    console.log('activate-staff-invite: caller email:', callerEmail);
 
     const callerId = caller.id;
     const callerMetadata = caller.user_metadata ?? {};
@@ -44,8 +50,10 @@ serve(async (req: Request): Promise<Response> => {
       Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!serviceRoleKey) {
+      console.log('activate-staff-invite: service role key missing');
       return errorResponse('Edge Function service role is not configured.', 500, headers);
     }
+    console.log('activate-staff-invite: service role key available');
 
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -54,6 +62,7 @@ serve(async (req: Request): Promise<Response> => {
     );
 
     // ---- 4. Find pending staff invite matching email ----
+    console.log('activate-staff-invite: querying staff_invites for:', callerEmail);
     const { data: invites, error: inviteError } = await adminClient
       .from('staff_invites')
       .select('*')
@@ -67,6 +76,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const invite = (invites ?? [])[0];
+    console.log('activate-staff-invite: invite found:', !!invite);
 
     if (!invite) {
       // No pending invite found — return activated:false (not an error)
@@ -85,6 +95,7 @@ serve(async (req: Request): Promise<Response> => {
     // 5a. Upsert profile row for the authenticated user
     const profileFullName = callerMetadata['full_name'] ?? invite.full_name ?? callerEmail;
     const avatarUrl = callerMetadata['avatar_url'] ?? callerMetadata['picture'] ?? null;
+    console.log('activate-staff-invite: upserting profile for:', callerId);
 
     const { error: profileError } = await adminClient
       .from('profiles')
@@ -93,16 +104,19 @@ serve(async (req: Request): Promise<Response> => {
         email: callerEmail,
         full_name: profileFullName,
         avatar_url: avatarUrl,
-        phone: invite.phone ?? null,
-        is_active: true,
+        // Note: phone column does not exist in production profiles table
+        // phone: invite.phone ?? null,
       }, { onConflict: 'id', ignoreDuplicates: false });
 
     if (profileError) {
       console.error('Profile upsert error:', profileError.message);
+      console.error('Profile upsert details:', JSON.stringify(profileError));
       return errorResponse('Failed to create profile during staff activation.', 500, headers);
     }
+    console.log('activate-staff-invite: profile upsert OK');
 
     // 5b. Upsert staff role in user_roles
+    console.log('activate-staff-invite: inserting staff role for:', callerId);
     const { error: roleInsertError } = await adminClient
       .from('user_roles')
       .upsert({
@@ -112,14 +126,16 @@ serve(async (req: Request): Promise<Response> => {
 
     if (roleInsertError) {
       console.error('Role insert error:', roleInsertError.message);
+      console.error('Role insert details:', JSON.stringify(roleInsertError));
       return errorResponse('Failed to assign staff role during activation.', 500, headers);
     }
+    console.log('activate-staff-invite: role insert OK');
 
     // ---- NOTE: Staff does not have an explicit staff table or staff row.
-    // The profile + user_roles entry is sufficient for staff functionality.
-    // If a staff-specific table is needed later, add the upsert here. ----
+    // The profile + user_roles entry is sufficient for staff functionality. ----
 
     // 5c. Mark staff invite as accepted
+    console.log('activate-staff-invite: updating invite to accepted:', invite.id);
     const inviteUpdatePayload: Record<string, unknown> = {
       status: 'accepted',
       accepted_user_id: callerId,
@@ -133,10 +149,10 @@ serve(async (req: Request): Promise<Response> => {
 
     if (inviteUpdateError) {
       console.error('Invite update error:', inviteUpdateError.message);
-      // Non-fatal: activation already completed, just log the warning
     }
 
     // ---- 6. Return success ----
+    console.log('activate-staff-invite: returning success');
     return new Response(
       JSON.stringify({
         activated: true,
@@ -147,6 +163,7 @@ serve(async (req: Request): Promise<Response> => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected error.';
     console.error('activate-staff-invite error:', message);
+    console.error('activate-staff-invite error stack:', err instanceof Error ? err.stack : 'no stack');
     return errorResponse(message, 500, headers);
   }
 });
