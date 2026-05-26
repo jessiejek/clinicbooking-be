@@ -19,3 +19,6 @@ verify_jwt = true
 
 [functions.update-staff-status]
 verify_jwt = true
+
+[functions.send-push-notification]
+verify_jwt = false

@@ -39,6 +39,11 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
     public DbSet<PatientVaccination> PatientVaccinations => Set<PatientVaccination>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserDeviceToken> UserDeviceTokens => Set<UserDeviceToken>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -226,6 +231,9 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.ProfessionalFeeWaivedByUserId).HasMaxLength(450);
             entity.Property(x => x.ProfessionalFeeWaivedAt).HasColumnType("datetime2");
             entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.AmountDue).HasPrecision(10, 2);
+            entity.Property(x => x.CancelledAt).HasColumnType("datetime2");
+            entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
             entity.Property(x => x.UpdatedAt).IsRequired();
             entity.HasIndex(x => x.PatientId);
             entity.HasIndex(x => x.DoctorId);
@@ -806,6 +814,77 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.BankAccountName).HasMaxLength(100);
             entity.Property(x => x.BankAccountNumber).HasMaxLength(50);
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        // ── Notifications ────────────────────────────────
+        builder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("Notifications");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Message).IsRequired().HasMaxLength(2000);
+            entity.Property(x => x.IsRead).IsRequired().HasDefaultValue(false);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.NavigateTo).HasMaxLength(500);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => new { x.UserId, x.IsRead });
+        });
+
+        // ── User Device Tokens ──────────────────────────
+        builder.Entity<UserDeviceToken>(entity =>
+        {
+            entity.ToTable("UserDeviceTokens");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.Token).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.Platform).IsRequired().HasMaxLength(20).HasDefaultValue("web");
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => new { x.UserId, x.Platform, x.Token }).IsUnique();
+        });
+
+        // ── Announcements ────────────────────────────────
+        builder.Entity<Announcement>(entity =>
+        {
+            entity.ToTable("Announcements");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Body).IsRequired();
+            entity.Property(x => x.ImageUrl).HasMaxLength(500);
+            entity.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        // ── Reviews ──────────────────────────────────────
+        builder.Entity<Review>(entity =>
+        {
+            entity.ToTable("Reviews");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.BookingId).IsRequired();
+            entity.Property(x => x.DoctorId).IsRequired();
+            entity.Property(x => x.PatientId).IsRequired();
+            entity.Property(x => x.Rating).IsRequired();
+            entity.Property(x => x.Comment).HasMaxLength(2000);
+            entity.Property(x => x.PatientName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => x.DoctorId);
+        });
+
+        // ── Audit Logs ───────────────────────────────────
+        builder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("AuditLogs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EntityType).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.EntityId).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.Action).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.PerformedBy).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.PerformedAt).IsRequired();
+            entity.Property(x => x.Details).HasMaxLength(4000);
+            entity.HasIndex(x => x.EntityType);
+            entity.HasIndex(x => x.PerformedAt);
         });
     }
 }

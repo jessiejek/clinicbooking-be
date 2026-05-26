@@ -38,8 +38,8 @@ BEGIN
     INSERT INTO public.notifications (user_id, title, message, navigate_to)
     VALUES (
       v_doctor_user_id,
-      'Patient Checked In',
-      COALESCE(v_patient_name, 'A patient') || ' has checked in for their appointment.',
+      'Patient Arrived',
+      COALESCE(v_patient_name, 'Your patient') || ' is already in the clinic and has checked in for their appointment.',
       '/doctor/appointments'
     );
 
@@ -49,7 +49,7 @@ BEGIN
     VALUES (
       v_doctor_user_id,
       'Patient Check-In Undone',
-      COALESCE(v_patient_name, 'A patient') || '''s check-in has been undone.',
+      COALESCE(v_patient_name, 'Your patient') || '''s check-in has been undone.',
       '/doctor/appointments'
     );
   END IF;

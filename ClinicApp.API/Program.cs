@@ -39,6 +39,10 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IClinicRealtimeNotifier, ClinicRealtimeNotifier>();
+builder.Services.AddScoped<INotificationService, ClinicApp.Infrastructure.Notifications.NotificationService>();
+builder.Services.AddScoped<IDeviceTokenService, ClinicApp.Infrastructure.DeviceTokens.DeviceTokenService>();
+builder.Services.AddScoped<IAnnouncementService, ClinicApp.Infrastructure.Announcements.AnnouncementService>();
+builder.Services.AddScoped<IReviewService, ClinicApp.Infrastructure.Reviews.ReviewService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

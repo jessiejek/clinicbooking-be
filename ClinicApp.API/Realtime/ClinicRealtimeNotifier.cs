@@ -1,32 +1,18 @@
 using ClinicApp.Application.Common.Interfaces;
-using ClinicApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ClinicApp.API.Realtime;
 
 public sealed class ClinicRealtimeNotifier : IClinicRealtimeNotifier
 {
-    private static readonly string[] PatientRelevantStatuses =
-    {
-        "Pending",
-        "ProofSubmitted",
-        "Confirmed",
-        "CheckedIn",
-        "OnHold",
-        "Completed"
-    };
-
     private readonly IHubContext<ClinicDashboardHub> _hubContext;
-    private readonly AppDbContext _dbContext;
 
-    public ClinicRealtimeNotifier(IHubContext<ClinicDashboardHub> hubContext, AppDbContext dbContext)
+    public ClinicRealtimeNotifier(IHubContext<ClinicDashboardHub> hubContext)
     {
         _hubContext = hubContext;
-        _dbContext = dbContext;
     }
 
-    public Task NotifyBookingEventAsync(
+    public async Task NotifyBookingEventAsync(
         string eventName,
         Guid bookingId,
         Guid patientId,
@@ -37,115 +23,45 @@ public sealed class ClinicRealtimeNotifier : IClinicRealtimeNotifier
         bool isProfessionalFeeWaived,
         CancellationToken cancellationToken)
     {
-        var payload = new ClinicDashboardEventDto(
-            EventName: eventName,
-            BookingId: bookingId,
-            PatientId: patientId,
-            DoctorId: doctorId,
-            Status: status,
-            PaymentStatus: paymentStatus,
-            FinalAmount: finalAmount,
-            IsProfessionalFeeWaived: isProfessionalFeeWaived,
-            Timestamp: DateTime.UtcNow);
-
-        var groups = new[]
+        var payload = new
         {
-            "Admin",
-            "Staff",
-            $"Doctor:{doctorId:D}",
-            $"Patient:{patientId:D}"
+            eventName,
+            bookingId = bookingId.ToString(),
+            patientId = patientId.ToString(),
+            doctorId = doctorId.ToString(),
+            status,
+            paymentStatus,
+            finalAmount,
+            isProfessionalFeeWaived,
+            timestamp = DateTime.UtcNow.ToString("o")
         };
 
-        return SendAsync(eventName, groups, payload, cancellationToken);
+        await _hubContext.Clients.Group("Admin").SendAsync(eventName, payload, cancellationToken);
+        await _hubContext.Clients.Group("Staff").SendAsync(eventName, payload, cancellationToken);
+        await _hubContext.Clients.Group($"Doctor:{doctorId:D}").SendAsync(eventName, payload, cancellationToken);
+        await _hubContext.Clients.Group($"Patient:{patientId:D}").SendAsync(eventName, payload, cancellationToken);
     }
 
-    public Task NotifyDoctorScheduleUpdatedAsync(Guid doctorId, CancellationToken cancellationToken)
+    public async Task NotifyDoctorScheduleUpdatedAsync(Guid doctorId, CancellationToken cancellationToken)
     {
-        var payload = new ClinicDashboardEventDto(
-            EventName: "DoctorScheduleUpdated",
-            BookingId: null,
-            PatientId: null,
-            DoctorId: doctorId,
-            Status: null,
-            PaymentStatus: null,
-            FinalAmount: null,
-            IsProfessionalFeeWaived: false,
-            Timestamp: DateTime.UtcNow);
-
-        return SendAsync(
-            "DoctorScheduleUpdated",
-            ["Admin", "Staff", $"Doctor:{doctorId:D}"],
-            payload,
-            cancellationToken);
+        var payload = new { eventName = "DoctorScheduleUpdated", doctorId = doctorId.ToString(), timestamp = DateTime.UtcNow.ToString("o") };
+        await _hubContext.Clients.Group($"Doctor:{doctorId:D}").SendAsync("DoctorScheduleUpdated", payload, cancellationToken);
+        await _hubContext.Clients.Group("Staff").SendAsync("DoctorScheduleUpdated", payload, cancellationToken);
+        await _hubContext.Clients.Group("Admin").SendAsync("DoctorScheduleUpdated", payload, cancellationToken);
     }
 
     public async Task NotifyDoctorServicesUpdatedAsync(IEnumerable<Guid> doctorIds, CancellationToken cancellationToken)
     {
-        foreach (var doctorId in doctorIds.Distinct())
+        var payload = new { eventName = "DoctorServicesUpdated", timestamp = DateTime.UtcNow.ToString("o") };
+        foreach (var doctorId in doctorIds)
         {
-            var payload = new ClinicDashboardEventDto(
-                EventName: "DoctorServicesUpdated",
-                BookingId: null,
-                PatientId: null,
-                DoctorId: doctorId,
-                Status: null,
-                PaymentStatus: null,
-                FinalAmount: null,
-                IsProfessionalFeeWaived: false,
-                Timestamp: DateTime.UtcNow);
-
-            await SendAsync(
-                "DoctorServicesUpdated",
-                ["Admin", "Staff", $"Doctor:{doctorId:D}"],
-                payload,
-                cancellationToken);
+            await _hubContext.Clients.Group($"Doctor:{doctorId:D}").SendAsync("DoctorServicesUpdated", payload, cancellationToken);
         }
     }
 
     public async Task NotifyPatientProfileUpdatedAsync(Guid patientId, CancellationToken cancellationToken)
     {
-        var relatedDoctorIds = await _dbContext.Bookings
-            .AsNoTracking()
-            .Where(x => x.PatientId == patientId && PatientRelevantStatuses.Contains(x.Status))
-            .Select(x => x.DoctorId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var groups = new List<string>
-        {
-            "Admin",
-            "Staff",
-            $"Patient:{patientId:D}"
-        };
-
-        groups.AddRange(relatedDoctorIds.Select(doctorId => $"Doctor:{doctorId:D}"));
-
-        var payload = new ClinicDashboardEventDto(
-            EventName: "PatientProfileUpdated",
-            BookingId: null,
-            PatientId: patientId,
-            DoctorId: null,
-            Status: null,
-            PaymentStatus: null,
-            FinalAmount: null,
-            IsProfessionalFeeWaived: false,
-            Timestamp: DateTime.UtcNow);
-
-        await SendAsync("PatientProfileUpdated", groups, payload, cancellationToken);
-    }
-
-    private Task SendAsync(string eventName, IEnumerable<string> groups, ClinicDashboardEventDto payload, CancellationToken cancellationToken)
-    {
-        var audience = groups
-            .Where(group => !string.IsNullOrWhiteSpace(group))
-            .Distinct()
-            .ToList();
-
-        if (audience.Count == 0)
-        {
-            return Task.CompletedTask;
-        }
-
-        return _hubContext.Clients.Groups(audience).SendAsync(eventName, payload, cancellationToken);
+        var payload = new { eventName = "PatientProfileUpdated", patientId = patientId.ToString(), timestamp = DateTime.UtcNow.ToString("o") };
+        await _hubContext.Clients.Group($"Patient:{patientId:D}").SendAsync("PatientProfileUpdated", payload, cancellationToken);
     }
 }
