@@ -11,4 +11,5 @@ public sealed class LabOrder
     public string Status { get; set; } = "Requested";
     public DateTime RequestedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public ICollection<LabOrderItem> Items { get; set; } = new List<LabOrderItem>();
 }

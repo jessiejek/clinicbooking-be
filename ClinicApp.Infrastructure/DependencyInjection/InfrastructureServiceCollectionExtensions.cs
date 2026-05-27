@@ -64,6 +64,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IClinicSeeder, ClinicSeeder>();
         services.AddScoped<IPatientVaccinationsService, PatientVaccinationsService>();
         services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
+        services.AddScoped<IMedicalRecordsService, MedicalRecordsService>();
 
         return services;
     }

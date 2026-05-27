@@ -9,6 +9,9 @@ public sealed class Prescription
     public Guid? DoctorId { get; set; }
     public string? PrescriptionNumber { get; set; }
     public string? Notes { get; set; }
+    public string Status { get; set; } = "Active";
     public DateTime IssuedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public ICollection<PrescriptionItem> Items { get; set; } = new List<PrescriptionItem>();
 }

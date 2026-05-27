@@ -37,6 +37,7 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
     public DbSet<PatientDocument> PatientDocuments => Set<PatientDocument>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<StaffInvite> StaffInvites => Set<StaffInvite>();
+    public DbSet<PatientAllergy> PatientAllergies => Set<PatientAllergy>();
     public DbSet<ExternalLoginAccount> ExternalLoginAccounts => Set<ExternalLoginAccount>();
     public DbSet<ClinicSettings> ClinicSettings => Set<ClinicSettings>();
     public DbSet<PatientVaccination> PatientVaccinations => Set<PatientVaccination>();
