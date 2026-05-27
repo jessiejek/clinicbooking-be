@@ -16,9 +16,9 @@ public sealed class SocialLoginRequestDtoValidator : AbstractValidator<SocialLog
 
         When(x => x.Provider is not null && x.Provider.Equals("Google", StringComparison.OrdinalIgnoreCase), () =>
         {
-            RuleFor(x => x.IdToken)
-                .NotEmpty()
-                .WithMessage("IdToken is required for Google login.");
+            RuleFor(x => x)
+                .Must(x => !string.IsNullOrWhiteSpace(x.IdToken) || !string.IsNullOrWhiteSpace(x.AccessToken))
+                .WithMessage("Either IdToken or AccessToken is required for Google login.");
         });
 
         When(x => x.Provider is not null && x.Provider.Equals("Facebook", StringComparison.OrdinalIgnoreCase), () =>

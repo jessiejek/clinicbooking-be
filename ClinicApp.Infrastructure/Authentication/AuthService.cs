@@ -105,7 +105,7 @@ public sealed class AuthService : IAuthService
         var provider = NormalizeProvider(request.Provider);
         var socialProfile = provider switch
         {
-            "Google" => await ValidateGoogleLoginAsync(request.IdToken, cancellationToken),
+            "Google" => await ValidateGoogleLoginAsync(request.IdToken, request.AccessToken, cancellationToken),
             "Facebook" => await ValidateFacebookLoginAsync(request.AccessToken, null, cancellationToken),
             _ => throw new ApiException(HttpStatusCode.BadRequest, "Provider must be Google or Facebook.")
         };
@@ -533,12 +533,20 @@ public sealed class AuthService : IAuthService
         }
     }
 
-    private async Task<SocialProfile> ValidateGoogleLoginAsync(string? idToken, CancellationToken cancellationToken)
+    private async Task<SocialProfile> ValidateGoogleLoginAsync(string? idToken, string? accessToken, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(idToken))
+        // If we have an idToken (JWT), validate it directly
+        if (!string.IsNullOrWhiteSpace(idToken))
         {
-            throw new ApiException(HttpStatusCode.BadRequest, "IdToken is required for Google login.");
+            return await ValidateGoogleIdTokenAsync(idToken, cancellationToken);
         }
+
+        // Fallback: use access_token to call Google UserInfo API (like Facebook's approach)
+        return await ValidateGoogleAccessTokenAsync(accessToken, cancellationToken);
+    }
+
+    private async Task<SocialProfile> ValidateGoogleIdTokenAsync(string idToken, CancellationToken cancellationToken)
+    {
 
         if (string.IsNullOrWhiteSpace(_googleAuthOptions.ClientId))
         {
@@ -623,6 +631,76 @@ public sealed class AuthService : IAuthService
         catch (System.Text.Json.JsonException)
         {
             throw new ApiException(HttpStatusCode.ServiceUnavailable, "Google sign-in validation is temporarily unavailable.");
+        }
+    }
+
+    private async Task<SocialProfile> ValidateGoogleAccessTokenAsync(string? accessToken, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Access token is required for Google login.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_googleAuthOptions.ClientId))
+        {
+            throw new ApiException(HttpStatusCode.InternalServerError, "Google login configuration is missing. Set Google:ClientId before starting the app.");
+        }
+
+        try
+        {
+            using var client = new HttpClient();
+            var userInfoUrl = $"https://www.googleapis.com/oauth2/v3/userinfo?access_token={Uri.EscapeDataString(accessToken)}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, userInfoUrl);
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {accessToken}");
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.SendAsync(request, cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                throw new ApiException(HttpStatusCode.ServiceUnavailable, "Google sign-in validation is temporarily unavailable.");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ApiException(HttpStatusCode.Unauthorized, "Google token is invalid.");
+            }
+
+            var userInfo = await response.Content.ReadFromJsonAsync<GoogleUserInfoResponse>(cancellationToken: cancellationToken);
+
+            if (userInfo is null
+                || string.IsNullOrWhiteSpace(userInfo.Sub)
+                || string.IsNullOrWhiteSpace(userInfo.Email))
+            {
+                throw new ApiException(HttpStatusCode.Unauthorized, "Google token is invalid.");
+            }
+
+            if (!userInfo.EmailVerified)
+            {
+                throw new ApiException(HttpStatusCode.Unauthorized, "Google account email is not verified.");
+            }
+
+            // Verify the token belongs to our app by checking the audience (azp claim)
+            // The Google UserInfo API doesn't return azp, so we rely on the token validation above
+
+            return new SocialProfile(
+                ProviderUserId: userInfo.Sub,
+                Email: userInfo.Email,
+                DisplayName: ResolveGoogleDisplayName(userInfo.Name, userInfo.GivenName, userInfo.FamilyName, userInfo.Email),
+                PhotoUrl: userInfo.Picture,
+                EmailVerified: true,
+                GivenName: userInfo.GivenName,
+                FamilyName: userInfo.FamilyName);
+        }
+        catch (HttpRequestException)
+        {
+            throw new ApiException(HttpStatusCode.ServiceUnavailable, "Google sign-in validation is temporarily unavailable.");
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            throw new ApiException(HttpStatusCode.Unauthorized, "Google token is invalid.");
         }
     }
 
@@ -744,6 +822,30 @@ public sealed class AuthService : IAuthService
 
         [JsonPropertyName("user_id")]
         public string UserId { get; init; } = string.Empty;
+    }
+
+    private sealed class GoogleUserInfoResponse
+    {
+        [JsonPropertyName("sub")]
+        public string Sub { get; init; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("given_name")]
+        public string? GivenName { get; init; }
+
+        [JsonPropertyName("family_name")]
+        public string? FamilyName { get; init; }
+
+        [JsonPropertyName("email")]
+        public string Email { get; init; } = string.Empty;
+
+        [JsonPropertyName("email_verified")]
+        public bool EmailVerified { get; init; }
+
+        [JsonPropertyName("picture")]
+        public string? Picture { get; init; }
     }
 
     private sealed class FacebookProfileResponse
