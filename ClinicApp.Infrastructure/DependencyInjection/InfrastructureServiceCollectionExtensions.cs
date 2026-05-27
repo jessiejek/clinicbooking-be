@@ -52,6 +52,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IClinicSettingsService, ClinicSettingsService>();
         services.AddScoped<IIdentitySeeder, IdentitySeeder>();
         services.AddScoped<IClinicDoctorsService, DoctorsService>();
+        services.AddScoped<IAdminStaffService, AdminStaffService>();
         services.AddScoped<IClinicBookingsService, BookingsService>();
         services.AddScoped<IClinicPaymentsService, BookingsService>();
         services.AddScoped<IPatientDocumentsService, PatientDocumentsService>();
