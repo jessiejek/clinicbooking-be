@@ -13,4 +13,5 @@ public interface IAuthService
     Task LogoutAsync(RefreshTokenRequestDto request, string? ipAddress, CancellationToken cancellationToken);
     Task<AuthUserDto> GetCurrentUserAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
     Task SetPasswordAsync(ClaimsPrincipal principal, SetPasswordRequestDto request, CancellationToken cancellationToken);
+    Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken);
 }

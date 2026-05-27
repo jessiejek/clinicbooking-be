@@ -88,6 +88,16 @@ public sealed class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPut("me")]
+    public async Task<ActionResult<AuthUserDto>> UpdateProfile(
+        [FromBody] UpdateAuthProfileDto request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _authService.UpdateProfileAsync(User, request, cancellationToken);
+        return Ok(response);
+    }
+
+    [Authorize]
     [HttpPost("set-password")]
     public async Task<IActionResult> SetPassword(
         [FromBody] SetPasswordRequestDto request,

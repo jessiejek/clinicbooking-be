@@ -7,7 +7,7 @@ namespace ClinicApp.Application.Common.Interfaces;
 
 public interface IClinicBookingsService
 {
-    Task<PagedResult<BookingSummaryDto>> GetBookingsAsync(string? status, Guid? doctorId, DateOnly? date, int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedResult<BookingSummaryDto>> GetBookingsAsync(string? status, Guid? doctorId, Guid? patientId, DateOnly? date, DateOnly? fromDate, DateOnly? toDate, int page, int pageSize, CancellationToken cancellationToken);
 
     Task<BookingDetailDto> CreateBookingAsync(CreateBookingDto dto, ClaimsPrincipal principal, CancellationToken cancellationToken);
 
@@ -48,6 +48,8 @@ public interface IClinicBookingsService
     Task<IReadOnlyList<DoctorPatientSummaryDto>> GetDoctorPatientsAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
 
     Task<PagedResult<BookingSummaryDto>> GetStaffTodayBookingsAsync(Guid? doctorId, string? status, int page, int pageSize, CancellationToken cancellationToken);
+
+    Task<PagedResult<BookingSummaryDto>> GetStaffAllBookingsAsync(int page, int pageSize, CancellationToken cancellationToken);
 
     Task<PagedResult<StaffForPaymentDto>> GetStaffBookingsForPaymentAsync(int page, int pageSize, CancellationToken cancellationToken);
 

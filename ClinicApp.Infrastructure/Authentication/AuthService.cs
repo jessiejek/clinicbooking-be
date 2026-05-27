@@ -213,6 +213,30 @@ public sealed class AuthService : IAuthService
         await _userManager.UpdateAsync(user);
     }
 
+    public async Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken)
+    {
+        var user = await GetUserAsync(principal, cancellationToken);
+        if (user is null)
+        {
+            throw new ApiException(HttpStatusCode.Unauthorized, "Unauthorized.");
+        }
+
+        if (request.FullName is not null)
+        {
+            user.FullName = request.FullName;
+        }
+
+        if (request.AvatarUrl is not null)
+        {
+            user.AvatarUrl = request.AvatarUrl;
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        return MapUser(user);
+    }
+
     private async Task<ApplicationUser?> GetUserAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var userId = _userManager.GetUserId(principal);

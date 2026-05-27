@@ -85,7 +85,10 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
     public async Task<PagedResult<BookingSummaryDto>> GetBookingsAsync(
         string? status,
         Guid? doctorId,
+        Guid? patientId,
         DateOnly? date,
+        DateOnly? fromDate,
+        DateOnly? toDate,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -106,9 +109,24 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             query = query.Where(x => x.DoctorId == doctorId.Value);
         }
 
+        if (patientId.HasValue)
+        {
+            query = query.Where(x => x.PatientId == patientId.Value);
+        }
+
         if (date.HasValue)
         {
             query = query.Where(x => x.AppointmentDate == date.Value);
+        }
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(x => x.AppointmentDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(x => x.AppointmentDate <= toDate.Value);
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -1101,6 +1119,11 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         var items = bookings.Select(MapSummary).ToList();
         var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)normalizedPageSize);
         return new PagedResult<BookingSummaryDto>(items, total, normalizedPage, normalizedPageSize, totalPages);
+    }
+
+    public async Task<PagedResult<BookingSummaryDto>> GetStaffAllBookingsAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        return await GetBookingsAsync(null, null, null, null, null, null, page, pageSize, cancellationToken);
     }
 
     public async Task<PagedResult<StaffForPaymentDto>> GetStaffBookingsForPaymentAsync(int page, int pageSize, CancellationToken cancellationToken)

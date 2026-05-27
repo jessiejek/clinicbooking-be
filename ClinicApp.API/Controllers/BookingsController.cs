@@ -22,14 +22,17 @@ public sealed class BookingsController : ControllerBase
     public async Task<ActionResult<PagedResult<BookingSummaryDto>>> GetBookings(
         [FromQuery] string? status = null,
         [FromQuery] Guid? doctorId = null,
+        [FromQuery] Guid? patientId = null,
         [FromQuery] DateOnly? date = null,
         [FromQuery(Name = "appointmentDate")] DateOnly? appointmentDate = null,
+        [FromQuery] DateOnly? fromDate = null,
+        [FromQuery] DateOnly? toDate = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         var effectiveDate = date ?? appointmentDate;
-        var result = await _bookingsService.GetBookingsAsync(status, doctorId, effectiveDate, page, pageSize, cancellationToken);
+        var result = await _bookingsService.GetBookingsAsync(status, doctorId, patientId, effectiveDate, fromDate, toDate, page, pageSize, cancellationToken);
         return Ok(result);
     }
 
@@ -200,6 +203,17 @@ public sealed class BookingsController : ControllerBase
     {
         var patients = await _bookingsService.GetDoctorPatientsAsync(User, cancellationToken);
         return Ok(patients);
+    }
+
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet("staff/all")]
+    public async Task<ActionResult<PagedResult<BookingSummaryDto>>> GetStaffAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _bookingsService.GetStaffAllBookingsAsync(page, pageSize, cancellationToken);
+        return Ok(result);
     }
 
     [Authorize(Roles = "Admin,Staff")]
