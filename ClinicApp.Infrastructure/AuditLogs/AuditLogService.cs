@@ -1,6 +1,7 @@
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Domain.Entities.Clinic;
 using ClinicApp.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClinicApp.Infrastructure.AuditLogs;
 
@@ -27,5 +28,24 @@ public sealed class AuditLogService : IAuditLogService
         });
 
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<AuditLogResponseDto>> GetLogsAsync(CancellationToken ct = default)
+    {
+        return await _db.AuditLogs
+            .AsNoTracking()
+            .OrderByDescending(x => x.PerformedAt)
+            .Take(500)
+            .Select(x => new AuditLogResponseDto
+            {
+                Id = x.Id.ToString(),
+                EntityType = x.EntityType,
+                EntityId = x.EntityId,
+                Action = x.Action,
+                PerformedBy = x.PerformedBy,
+                PerformedAt = x.PerformedAt.ToString("o"),
+                Details = x.Details
+            })
+            .ToListAsync(ct);
     }
 }

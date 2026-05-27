@@ -1,4 +1,4 @@
-using ClinicApp.Application.Common.Interfaces;
+﻿using ClinicApp.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -15,6 +15,13 @@ public sealed class AuditLogsController : ControllerBase
     public AuditLogsController(IAuditLogService auditLogService)
     {
         _auditLogService = auditLogService;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<AuditLogResponseDto>>> GetLogs(CancellationToken ct)
+    {
+        var logs = await _auditLogService.GetLogsAsync(ct);
+        return Ok(logs);
     }
 
     [HttpPost]

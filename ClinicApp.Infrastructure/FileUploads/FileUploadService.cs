@@ -1,5 +1,4 @@
 using ClinicApp.Application.Common.Interfaces;
-using Microsoft.AspNetCore.Http;
 
 namespace ClinicApp.Infrastructure.FileUploads;
 
@@ -14,18 +13,18 @@ public sealed class FileUploadService : IFileUploadService
         _baseUrl = baseUrl.TrimEnd('/');
     }
 
-    public async Task<string> UploadAsync(IFormFile file, string subFolder, CancellationToken ct = default)
+    public async Task<string> UploadAsync(Stream fileStream, string fileName, string subFolder, CancellationToken ct = default)
     {
         var dir = Path.Combine(_basePath, subFolder);
         Directory.CreateDirectory(dir);
 
-        var fileName = $"{Guid.NewGuid():N}_{file.FileName}";
-        var fullPath = Path.Combine(dir, fileName);
+        var uniqueName = $"{Guid.NewGuid():N}_{fileName}";
+        var fullPath = Path.Combine(dir, uniqueName);
 
         await using var stream = new FileStream(fullPath, FileMode.Create);
-        await file.CopyToAsync(stream, ct);
+        await fileStream.CopyToAsync(stream, ct);
 
-        return Path.Combine(subFolder, fileName).Replace('\\', '/');
+        return Path.Combine(subFolder, uniqueName).Replace('\\', '/');
     }
 
     public string GetFileUrl(string relativePath)
