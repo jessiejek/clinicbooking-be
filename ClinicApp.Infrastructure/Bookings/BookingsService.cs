@@ -211,7 +211,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             await _notificationService.CreateNotificationAsync(
                 doctor.UserId,
                 "New Appointment Booking",
-                $"{patient.FullName} booked an appointment on {dto.AppointmentDate:MMM dd} at {dto.SlotStartTime:hh\:mm}.",
+                $"{patient.FirstName} {patient.LastName} booked an appointment on {dto.AppointmentDate:MMM dd} at {dto.SlotStartTime:HH:mm}.",
                 $"/doctor/dashboard",
                 cancellationToken);
 
@@ -282,7 +282,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             await _notificationService.CreateNotificationAsync(
                 doctor.UserId,
                 "Walk-in Booking",
-                $"{patient.FullName} was registered as a walk-in patient.",
+                $"{patient.FirstName} {patient.LastName} was registered as a walk-in patient.",
                 $"/staff/dashboard",
                 cancellationToken);
 
@@ -405,7 +405,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             await _notificationService.CreateNotificationAsync(
                 booking.Doctor.UserId,
                 "Booking Cancelled",
-                $"{booking.Patient?.FullName ?? "A patient"} cancelled their appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:hh\:mm}.",
+                $"{(booking.Patient is not null ? $"{booking.Patient.FirstName} {booking.Patient.LastName}" : "A patient")} cancelled their appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:HH:mm}.",
                 $"/doctor/dashboard",
                 cancellationToken);
         }
@@ -452,7 +452,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             await _notificationService.CreateNotificationAsync(
                 booking.Doctor.UserId,
                 "Patient Checked In",
-                $"{booking.Patient?.FullName ?? "A patient"} has checked in for their {booking.AppointmentDate:MMM dd} appointment.",
+                $"{(booking.Patient is not null ? $"{booking.Patient.FirstName} {booking.Patient.LastName}" : "A patient")} has checked in for their {booking.AppointmentDate:MMM dd} appointment.",
                 $"/doctor/dashboard",
                 cancellationToken);
         }
@@ -890,7 +890,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             await _notificationService.CreateNotificationAsync(
                 booking.Patient.UserId,
                 "Missed Appointment",
-                $"You were marked as a no-show for your appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:hh\:mm}. Please contact the clinic to reschedule.",
+                $"You were marked as a no-show for your appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:HH:mm}. Please contact the clinic to reschedule.",
                 $"/patient/dashboard",
                 cancellationToken);
         }
