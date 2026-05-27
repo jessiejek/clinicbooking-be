@@ -497,9 +497,9 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.ToTable("PrescriptionItems");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.PrescriptionId).IsRequired();
-            entity.Property(x => x.MedicationName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.MedicineName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Strength).HasMaxLength(100);
-            entity.Property(x => x.Dosage).HasMaxLength(100);
+            entity.Property(x => x.DosageForm).HasMaxLength(100);
             entity.Property(x => x.Route).HasMaxLength(50);
             entity.Property(x => x.Frequency).HasMaxLength(50);
             entity.Property(x => x.Duration).HasMaxLength(50);
@@ -507,8 +507,8 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.Instructions).HasColumnType("nvarchar(max)");
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
             entity.HasIndex(x => x.PrescriptionId);
-            entity.HasOne<Prescription>()
-                .WithMany()
+            entity.HasOne(x => x.Prescription)
+                .WithMany(x => x.Items)
                 .HasForeignKey(x => x.PrescriptionId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -558,8 +558,8 @@ public sealed class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRo
             entity.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
             entity.Property(x => x.CreatedAt).IsRequired().HasColumnType("datetime2");
             entity.HasIndex(x => x.LabOrderId);
-            entity.HasOne<LabOrder>()
-                .WithMany()
+            entity.HasOne(x => x.LabOrder)
+                .WithMany(x => x.Items)
                 .HasForeignKey(x => x.LabOrderId)
                 .OnDelete(DeleteBehavior.Restrict);
         });

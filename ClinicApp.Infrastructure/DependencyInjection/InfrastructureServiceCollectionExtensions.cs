@@ -12,6 +12,8 @@ using ClinicApp.Infrastructure.PatientVaccinations;
 using ClinicApp.Infrastructure.Persistence;
 using ClinicApp.Infrastructure.Seeding;
 using ClinicApp.Infrastructure.Services;
+using ClinicApp.Infrastructure.Staff;
+using ClinicApp.Infrastructure.MedicalRecords;
 using ClinicApp.Infrastructure.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

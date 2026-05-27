@@ -1698,9 +1698,9 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             .ThenBy(x => x.Id)
             .Select(x => new ConsultationRecordPrescriptionItemDto(
                 x.Id,
-                x.MedicationName,
+                x.MedicineName,
                 x.Strength,
-                x.Dosage,
+                x.DosageForm,
                 x.Route,
                 x.Frequency,
                 x.Duration,
@@ -1734,7 +1734,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 item.Route,
                 item.Frequency,
                 item.Duration,
-                item.Quantity.ToString(CultureInfo.InvariantCulture),
+                item.Quantity.ToString(),
                 item.Instructions)).ToList();
 
             return new ConsultationRecordPrescriptionDto(booking.Id, booking.Notes, mappedItems);
@@ -2095,9 +2095,9 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             {
                 Id = Guid.NewGuid(),
                 PrescriptionId = prescription.Id,
-                MedicationName = item.MedicationName,
+                MedicineName = item.MedicationName,
                 Strength = item.Strength,
-                Dosage = item.Dosage,
+                DosageForm = item.DosageForm,
                 Route = item.Route,
                 Frequency = item.Frequency,
                 Duration = item.Duration,
@@ -2386,7 +2386,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 Route: TrimOrNull(item.Route),
                 Frequency: TrimOrNull(item.Frequency),
                 Duration: TrimOrNull(item.Duration),
-                Quantity: item.Quantity.ToString(CultureInfo.InvariantCulture),
+                Quantity: item.Quantity.ToString(),
                 Instructions: TrimOrNull(item.Instructions),
                 GenericName: TrimOrNull(item.GenericName),
                 DosageForm: TrimOrNull(item.DosageForm),

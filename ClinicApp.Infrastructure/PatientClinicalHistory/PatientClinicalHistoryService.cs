@@ -199,9 +199,9 @@ public sealed class PatientClinicalHistoryService : IPatientClinicalHistoryServi
                         ["notes"] = presc.Notes,
                         ["items"] = prescItems.Select(i => new Dictionary<string, string?>
                         {
-                            ["medicationName"] = i.MedicationName,
+                            ["medicineName"] = i.MedicineName,
                             ["strength"] = i.Strength,
-                            ["dosage"] = i.Dosage,
+                            ["dosageForm"] = i.DosageForm,
                             ["route"] = i.Route,
                             ["frequency"] = i.Frequency,
                             ["duration"] = i.Duration,
@@ -349,9 +349,9 @@ public sealed class PatientClinicalHistoryService : IPatientClinicalHistoryServi
                 Items: prescriptionItems
                     .Where(i => i.PrescriptionId == p.Id)
                     .Select(i => new PatientClinicalHistoryPrescriptionItemDto(
-                        MedicationName: i.MedicationName,
+                        MedicineName: i.MedicineName,
                         Strength: i.Strength,
-                        Dosage: i.Dosage,
+                        DosageForm: i.DosageForm,
                         Route: i.Route,
                         Frequency: i.Frequency,
                         Duration: i.Duration,

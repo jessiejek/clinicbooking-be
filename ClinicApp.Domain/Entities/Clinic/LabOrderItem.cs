@@ -9,4 +9,5 @@ public sealed class LabOrderItem
     public string? Instructions { get; set; }
     public string Status { get; set; } = "Pending";
     public DateTime CreatedAt { get; set; }
+    public LabOrder? LabOrder { get; set; }
 }

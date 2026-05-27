@@ -28,9 +28,9 @@ public sealed record ConsultationRecordPrescriptionDto(
 
 public sealed record ConsultationRecordPrescriptionItemDto(
     Guid Id,
-    string MedicationName,
+    string MedicineName,
     string? Strength,
-    string? Dosage,
+    string? DosageForm,
     string? Route,
     string? Frequency,
     string? Duration,

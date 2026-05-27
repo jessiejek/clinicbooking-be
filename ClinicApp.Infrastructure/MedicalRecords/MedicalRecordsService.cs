@@ -396,7 +396,7 @@ public sealed class MedicalRecordsService : IMedicalRecordsService
             GenericName = i.GenericName,
             DosageForm = i.DosageForm,
             Strength = i.Strength,
-            Quantity = i.Quantity,
+            Quantity = i.Quantity.ToString(),
             Sig = i.Sig,
             Frequency = i.Frequency,
             Duration = i.Duration,
@@ -437,7 +437,7 @@ public sealed class MedicalRecordsService : IMedicalRecordsService
                 GenericName = item.GenericName,
                 DosageForm = item.DosageForm,
                 Strength = item.Strength,
-                Quantity = item.Quantity,
+                Quantity = item.Quantity.ToString(),
                 Sig = item.Sig,
                 Frequency = item.Frequency,
                 Duration = item.Duration,
@@ -731,7 +731,7 @@ public sealed class MedicalRecordsService : IMedicalRecordsService
             p.Status,
             p.Items.Select(i => new PrescriptionItemDto(
                 i.MedicineName, i.GenericName, i.DosageForm ?? "",
-                i.Strength ?? "", i.Sig ?? "", i.Quantity,
+                i.Strength ?? "", i.Sig ?? "", int.TryParse(i.Quantity ?? "0", out var qty) ? qty : 0,
                 i.Frequency, i.Duration, i.Route, i.Instructions,
                 i.IsControlledSubstance, i.BrandName)).ToList(),
             p.Notes);

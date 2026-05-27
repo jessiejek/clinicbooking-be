@@ -112,9 +112,9 @@ public sealed record PatientClinicalHistoryPrescriptionDto(
     IReadOnlyList<PatientClinicalHistoryPrescriptionItemDto> Items);
 
 public sealed record PatientClinicalHistoryPrescriptionItemDto(
-    string MedicationName,
+    string MedicineName,
     string? Strength,
-    string? Dosage,
+    string? DosageForm,
     string? Route,
     string? Frequency,
     string? Duration,

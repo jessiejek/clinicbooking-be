@@ -9,7 +9,7 @@ public sealed class PrescriptionItem
     public string? DosageForm { get; set; }
     public string? Strength { get; set; }
     public string? Sig { get; set; }
-    public int Quantity { get; set; }
+    public string? Quantity { get; set; }
     public string? Frequency { get; set; }
     public string? Duration { get; set; }
     public string? Route { get; set; }
@@ -17,4 +17,5 @@ public sealed class PrescriptionItem
     public bool IsControlledSubstance { get; set; }
     public string? BrandName { get; set; }
     public DateTime CreatedAt { get; set; }
+    public Prescription? Prescription { get; set; }
 }
