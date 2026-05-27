@@ -213,6 +213,30 @@ public sealed class AuthService : IAuthService
         await _userManager.UpdateAsync(user);
     }
 
+    public async Task ChangePasswordAsync(ClaimsPrincipal principal, ChangePasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Passwords do not match.");
+        }
+
+        var user = await GetUserAsync(principal, cancellationToken);
+        if (user is null)
+        {
+            throw new ApiException(HttpStatusCode.Unauthorized, "Unauthorized.");
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new ApiException(HttpStatusCode.BadRequest, $"Password change failed: {errors}");
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+    }
+
     public async Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken)
     {
         var user = await GetUserAsync(principal, cancellationToken);

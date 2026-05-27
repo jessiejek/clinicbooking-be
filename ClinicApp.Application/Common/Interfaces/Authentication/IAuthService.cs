@@ -14,4 +14,5 @@ public interface IAuthService
     Task<AuthUserDto> GetCurrentUserAsync(ClaimsPrincipal principal, CancellationToken cancellationToken);
     Task SetPasswordAsync(ClaimsPrincipal principal, SetPasswordRequestDto request, CancellationToken cancellationToken);
     Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken);
+    Task ChangePasswordAsync(ClaimsPrincipal principal, ChangePasswordRequestDto request, CancellationToken cancellationToken);
 }
