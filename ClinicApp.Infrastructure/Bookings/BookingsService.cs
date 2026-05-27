@@ -69,17 +69,20 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IClinicSettingsService _clinicSettingsService;
     private readonly IClinicRealtimeNotifier _realtimeNotifier;
+    private readonly INotificationService _notificationService;
 
     public BookingsService(
         AppDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         IClinicSettingsService clinicSettingsService,
-        IClinicRealtimeNotifier realtimeNotifier)
+        IClinicRealtimeNotifier realtimeNotifier,
+        INotificationService notificationService)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _clinicSettingsService = clinicSettingsService;
         _realtimeNotifier = realtimeNotifier;
+        _notificationService = notificationService;
     }
 
     public async Task<PagedResult<BookingSummaryDto>> GetBookingsAsync(
@@ -204,6 +207,14 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 booking.IsProfessionalFeeWaived,
                 cancellationToken);
 
+            // Notify doctor
+            await _notificationService.CreateNotificationAsync(
+                doctor.UserId,
+                "New Appointment Booking",
+                $"{patient.FullName} booked an appointment on {dto.AppointmentDate:MMM dd} at {dto.SlotStartTime:hh\:mm}.",
+                $"/doctor/dashboard",
+                cancellationToken);
+
             return await GetBookingDetailAsync(booking.Id, cancellationToken);
         }
         catch
@@ -265,6 +276,14 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 booking.PaymentStatus,
                 booking.FinalAmount,
                 booking.IsProfessionalFeeWaived,
+                cancellationToken);
+
+            // Notify doctor
+            await _notificationService.CreateNotificationAsync(
+                doctor.UserId,
+                "Walk-in Booking",
+                $"{patient.FullName} was registered as a walk-in patient.",
+                $"/staff/dashboard",
                 cancellationToken);
 
             return await GetBookingDetailAsync(booking.Id, cancellationToken);
@@ -380,6 +399,17 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             booking.IsProfessionalFeeWaived,
             cancellationToken);
 
+        // Notify doctor
+        if (booking.Doctor is not null)
+        {
+            await _notificationService.CreateNotificationAsync(
+                booking.Doctor.UserId,
+                "Booking Cancelled",
+                $"{booking.Patient?.FullName ?? "A patient"} cancelled their appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:hh\:mm}.",
+                $"/doctor/dashboard",
+                cancellationToken);
+        }
+
         return await GetBookingDetailAsync(id, cancellationToken);
     }
 
@@ -415,6 +445,17 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             booking.FinalAmount,
             booking.IsProfessionalFeeWaived,
             cancellationToken);
+
+        // Notify doctor
+        if (booking.Doctor is not null)
+        {
+            await _notificationService.CreateNotificationAsync(
+                booking.Doctor.UserId,
+                "Patient Checked In",
+                $"{booking.Patient?.FullName ?? "A patient"} has checked in for their {booking.AppointmentDate:MMM dd} appointment.",
+                $"/doctor/dashboard",
+                cancellationToken);
+        }
 
         return await GetBookingDetailAsync(id, cancellationToken);
     }
@@ -576,6 +617,17 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                     booking.PaymentStatus,
                     booking.FinalAmount,
                     booking.IsProfessionalFeeWaived,
+                    cancellationToken);
+            }
+
+            // Notify patient
+            if (booking.Patient is not null && !string.IsNullOrWhiteSpace(booking.Patient.UserId))
+            {
+                await _notificationService.CreateNotificationAsync(
+                    booking.Patient.UserId,
+                    "Consultation Complete",
+                    $"Your appointment with Dr. {booking.Doctor?.FullName ?? "your doctor"} on {booking.AppointmentDate:MMM dd} is complete. Please proceed to the payment counter.",
+                    $"/patient/dashboard",
                     cancellationToken);
             }
 
@@ -788,6 +840,17 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 booking.IsProfessionalFeeWaived,
                 cancellationToken);
 
+            // Notify patient
+            if (booking.Patient is not null && !string.IsNullOrWhiteSpace(booking.Patient.UserId))
+            {
+                await _notificationService.CreateNotificationAsync(
+                    booking.Patient.UserId,
+                    "Appointment Completed",
+                    $"Your appointment on {booking.AppointmentDate:MMM dd} with Dr. {booking.Doctor?.FullName ?? "your doctor"} has been marked as completed.",
+                    $"/patient/dashboard",
+                    cancellationToken);
+            }
+
             return await GetBookingDetailAsync(id, cancellationToken);
         }
         catch
@@ -809,6 +872,28 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         booking.Status = BookingStatusNoShow;
         booking.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _realtimeNotifier.NotifyBookingEventAsync(
+            "BookingCancelled",
+            booking.Id,
+            booking.PatientId,
+            booking.DoctorId,
+            booking.Status,
+            booking.PaymentStatus,
+            booking.FinalAmount,
+            booking.IsProfessionalFeeWaived,
+            cancellationToken);
+
+        // Notify patient
+        if (booking.Patient is not null && !string.IsNullOrWhiteSpace(booking.Patient.UserId))
+        {
+            await _notificationService.CreateNotificationAsync(
+                booking.Patient.UserId,
+                "Missed Appointment",
+                $"You were marked as a no-show for your appointment on {booking.AppointmentDate:MMM dd} at {booking.SlotStartTime:hh\:mm}. Please contact the clinic to reschedule.",
+                $"/patient/dashboard",
+                cancellationToken);
+        }
 
         return await GetBookingDetailAsync(id, cancellationToken);
     }
@@ -1336,6 +1421,18 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 payment.Booking.IsProfessionalFeeWaived,
                 cancellationToken);
 
+            // Notify patient
+            if (payment.Booking.Patient is not null && !string.IsNullOrWhiteSpace(payment.Booking.Patient.UserId))
+            {
+                var formattedAmount = payment.Amount.ToString("N2");
+                await _notificationService.CreateNotificationAsync(
+                    payment.Booking.Patient.UserId,
+                    "Payment Confirmed",
+                    $"Your payment of ₱{formattedAmount} has been confirmed. Receipt is available in your account.",
+                    $"/patient/dashboard",
+                    cancellationToken);
+            }
+
             return await BuildReceiptAsync(payment, cancellationToken);
         }
         catch
@@ -1400,6 +1497,17 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                     payment.Booking.FinalAmount,
                     payment.Booking.IsProfessionalFeeWaived,
                     cancellationToken);
+
+                // Notify patient
+                if (payment.Booking.Patient is not null && !string.IsNullOrWhiteSpace(payment.Booking.Patient.UserId))
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        payment.Booking.Patient.UserId,
+                        "Fee Waived",
+                        $"The professional fee for your appointment on {payment.Booking.AppointmentDate:MMM dd} has been waived.",
+                        $"/patient/dashboard",
+                        cancellationToken);
+                }
             }
 
             return Map(payment);
@@ -1443,6 +1551,18 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            // Notify patient
+            if (payment.Booking?.Patient is not null && !string.IsNullOrWhiteSpace(payment.Booking.Patient.UserId))
+            {
+                var formattedAmount = payment.Amount.ToString("N2");
+                await _notificationService.CreateNotificationAsync(
+                    payment.Booking.Patient.UserId,
+                    "Payment Refunded",
+                    $"Your payment of ₱{formattedAmount} has been refunded. Reason: {payment.RefundReason ?? "N/A"}.",
+                    $"/patient/dashboard",
+                    cancellationToken);
+            }
 
             return Map(payment);
         }
