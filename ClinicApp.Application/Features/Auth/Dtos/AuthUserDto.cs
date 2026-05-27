@@ -6,4 +6,5 @@ public sealed record AuthUserDto(
     string Email,
     string Role,
     string? AvatarUrl,
-    bool IsFirstLogin);
+    bool IsFirstLogin,
+    string? PhoneNumber);

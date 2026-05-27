@@ -1,0 +1,1899 @@
+================================================================================
+  CLINIC BOOKING API — COMPLETE API DOCUMENTATION
+  Controllers, Endpoints, Request Payloads & Response DTOs
+================================================================================
+
+BASE URL: /api
+AUTH SCHEMES: [AllowAnonymous] | [Authorize] | [Authorize(Roles = "Admin,Staff,...")]
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1. HEALTH CONTROLLER                                                        │
+│ Route: /api/health                                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/health
+  Auth: AllowAnonymous
+  Response: 200 OK
+  {
+    "status": "healthy",
+    "appName": "ClinicApp.API",
+    "environment": "Production",
+    "timestampUtc": "2026-05-27T09:00:00Z"
+  }
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 2. AUTH CONTROLLER                                                          │
+│ Route: /api/auth                                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+POST  /api/auth/login
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "email": "string",
+    "password": "string"
+  }
+  Response: 200 OK
+  {
+    "accessToken": "string",
+    "refreshToken": "string",
+    "expiresAt": "2026-05-27T10:00:00Z",
+    "user": {
+      "id": "guid",
+      "fullName": "string",
+      "email": "string",
+      "role": "string",
+      "avatarUrl": "string|null",
+      "isFirstLogin": "bool"
+    }
+  }
+
+POST  /api/auth/register
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "firstName": "string",
+    "middleName": "string|null",
+    "lastName": "string",
+    "email": "string",
+    "password": "string",
+    "avatarUrl": "string|null"
+  }
+  Response: 200 OK (same AuthResponseDto as login)
+
+POST  /api/auth/google
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "provider": "Google",
+    "idToken": "string|null",
+    "accessToken": "string|null"
+  }
+  Response: 200 OK (AuthResponseDto)
+
+POST  /api/auth/facebook
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "accessToken": "string|null",
+    "userId": "string|null",
+    "provider": "string|null"
+  }
+  Response: 200 OK (AuthResponseDto)
+
+POST  /api/auth/refresh-token
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "refreshToken": "string"
+  }
+  Response: 200 OK (AuthResponseDto)
+
+POST  /api/auth/logout
+  Auth: AllowAnonymous
+  Request Body:
+  {
+    "refreshToken": "string"
+  }
+  Response: 204 No Content
+
+GET  /api/auth/me
+  Auth: Authorize (any role)
+  Response: 200 OK
+  {
+    "id": "guid",
+    "fullName": "string",
+    "email": "string",
+    "role": "string",
+    "avatarUrl": "string|null",
+    "isFirstLogin": "bool"
+  }
+
+PUT  /api/auth/me
+  Auth: Authorize (any role)
+  Request Body:
+  {
+    "fullName": "string|null",
+    "avatarUrl": "string|null"
+  }
+  Response: 200 OK (AuthUserDto)
+
+POST  /api/auth/change-password
+  Auth: Authorize (any role)
+  Request Body:
+  {
+    "currentPassword": "string",
+    "newPassword": "string",
+    "confirmPassword": "string"
+  }
+  Response: 204 No Content
+
+POST  /api/auth/set-password
+  Auth: Authorize (any role)
+  Request Body:
+  {
+    "newPassword": "string"
+  }
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 3. ANNOUNCEMENTS CONTROLLER                                                 │
+│ Route: /api/announcements                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/announcements
+  Auth: AllowAnonymous
+  Response: 200 OK
+  [
+    {
+      "id": "string",
+      "title": "string",
+      "body": "string",
+      "imageUrl": "string|null",
+      "isActive": "bool",
+      "createdAt": "string (datetime)"
+    }
+  ]
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 4. AUDIT LOGS CONTROLLER                                                    │
+│ Route: /api/audit-logs                                                      │
+│ Roles: Admin, Staff, Doctor                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/audit-logs
+  Auth: Admin, Staff, Doctor
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "entityType": "string",
+      "entityId": "string",
+      "action": "string",
+      "userId": "string",
+      "userName": "string|null",
+      "details": "string|null",
+      "createdAt": "datetime"
+    }
+  ]
+
+POST  /api/audit-logs
+  Auth: Admin, Staff, Doctor
+  Request Body:
+  {
+    "entityType": "string",
+    "entityId": "string",
+    "action": "string",
+    "details": "string|null"
+  }
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 5. DOCTORS CONTROLLER                                                       │
+│ Route: /api/doctors                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/doctors
+  Auth: AllowAnonymous
+  Query Parameters: (none)
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "fullName": "string",
+      "specialization": "string",
+      "consultationFee": "decimal",
+      "averageRating": "decimal|null",
+      "reviewCount": "int",
+      "status": "string",
+      "profilePhotoUrl": "string|null",
+      "userId": "string"
+    }
+  ]
+
+GET  /api/doctors/admin
+  Auth: Admin
+  Response: 200 OK (same list, includes inactive)
+
+GET  /api/doctors/{id:guid}
+  Auth: AllowAnonymous
+  Response: 200 OK
+  {
+    "id": "guid",
+    "userId": "string",
+    "fullName": "string",
+    "specialization": "string",
+    "bio": "string|null",
+    "profilePhotoUrl": "string|null",
+    "licenseNumber": "string|null",
+    "ptrNumber": "string|null",
+    "s2Number": "string|null",
+    "consultationFee": "decimal",
+    "slotDurationMinutes": "int",
+    "slotCapacity": "int",
+    "dailyPatientLimit": "int|null",
+    "status": "string",
+    "averageRating": "decimal|null",
+    "reviewCount": "int",
+    "createdAt": "datetime",
+    "updatedAt": "datetime",
+    "schedules": [ { "id": "guid", "doctorId": "guid", "dayOfWeek": "string", "startTime": "string", "endTime": "string" } ],
+    "blockedDates": [ { "id": "guid", "blockedDate": "date", "reason": "string|null" } ],
+    "services": [ { ServiceDto fields... } ],
+    "todayStatus": { DoctorDayStatusDto } | null
+  }
+
+GET  /api/doctors/{doctorId:guid}/services
+  Auth: AllowAnonymous
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "name": "string",
+      "description": "string|null",
+      "category": "string",
+      "price": "decimal",
+      "estimatedDurationMinutes": "int",
+      "isActive": "bool"
+    }
+  ]
+
+POST  /api/doctors
+  Auth: Admin
+  Request Body:
+  {
+    "fullName": "string",
+    "specialization": "string",
+    "bio": "string|null",
+    "licenseNumber": "string|null",
+    "ptrNumber": "string|null",
+    "s2Number": "string|null",
+    "consultationFee": "decimal",
+    "slotDurationMinutes": "int",
+    "slotCapacity": "int",
+    "dailyPatientLimit": "int|null",
+    "doctorEmail": "string",
+    "tempPassword": "string",
+    "serviceIds": ["guid", ...] | null
+  }
+  Response: 201 OK (DoctorDetailDto)
+
+PUT  /api/doctors/{id:guid}
+  Auth: Admin
+  Request Body:
+  {
+    "fullName": "string",
+    "specialization": "string",
+    "bio": "string|null",
+    "licenseNumber": "string|null",
+    "ptrNumber": "string|null",
+    "s2Number": "string|null",
+    "consultationFee": "decimal",
+    "slotDurationMinutes": "int",
+    "slotCapacity": "int",
+    "dailyPatientLimit": "int|null",
+    "status": "string|null"
+  }
+  Response: 200 OK (DoctorDetailDto)
+
+PUT  /api/doctors/{doctorId:guid}/services
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "serviceIds": ["guid", ...]
+  }
+  Response: 200 OK [ ServiceDto, ... ]
+
+DELETE  /api/doctors/{id:guid}
+  Auth: Admin
+  Response: 204 No Content
+
+GET  /api/doctors/me
+  Auth: Doctor
+  Response: 200 OK (DoctorDetailDto)
+
+PUT  /api/doctors/me
+  Auth: Doctor
+  Request Body: (same as UpdateDoctorDto above)
+  Response: 200 OK (DoctorDetailDto)
+
+GET  /api/doctors/{id:guid}/schedule
+  Auth: AllowAnonymous
+  Response: 200 OK [ DoctorScheduleDto, ... ]
+  [ { "id": "guid", "doctorId": "guid", "dayOfWeek": "string", "startTime": "string", "endTime": "string" } ]
+
+PUT  /api/doctors/{id:guid}/schedule
+  Auth: Admin, Doctor
+  Request Body:
+  {
+    "schedules": [
+      { "dayOfWeek": "string", "startTime": "string", "endTime": "string" }
+    ]
+  }
+  Response: 200 OK [ DoctorScheduleDto, ... ]
+
+GET  /api/doctors/{id:guid}/blocked-dates
+  Auth: Admin, Doctor
+  Response: 200 OK
+  [ { "id": "guid", "blockedDate": "date", "reason": "string|null" } ]
+
+POST  /api/doctors/{id:guid}/blocked-dates
+  Auth: Admin, Doctor
+  Request Body:
+  {
+    "blockedDate": "2026-05-28",
+    "reason": "string|null"
+  }
+  Response: 200 OK (DoctorBlockedDateDto)
+
+DELETE  /api/doctors/{id:guid}/blocked-dates/{bdId:guid}
+  Auth: Admin, Doctor
+  Response: 204 No Content
+
+GET  /api/doctors/{id:guid}/day-status
+  Auth: Admin, Doctor, Staff
+  Response: 200 OK [ DoctorDayStatusDto, ... ]
+  [ { "id": "guid", "date": "date", "status": "string", "runningLateMinutes": "int|null" } ]
+
+POST  /api/doctors/{id:guid}/day-status
+  Auth: Doctor, Staff
+  Request Body:
+  {
+    "date": "2026-05-27",
+    "status": "string",
+    "runningLateMinutes": "int|null"
+  }
+  Response: 200 OK (DoctorDayStatusDto)
+
+GET  /api/doctors/{id:guid}/available-slots?date=2026-05-27
+  Auth: AllowAnonymous
+  Response: 200 OK
+  [
+    {
+      "slotStartTime": "09:00",
+      "slotEndTime": "09:30",
+      "isAvailable": "bool",
+      "bookedCount": "int",
+      "capacity": "int"
+    }
+  ]
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 6. SERVICES CONTROLLER                                                      │
+│ Route: /api/services                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/services
+  Auth: AllowAnonymous
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "name": "string",
+      "description": "string|null",
+      "category": "string",
+      "price": "decimal",
+      "estimatedDurationMinutes": "int",
+      "isActive": "bool"
+    }
+  ]
+
+GET  /api/services/{id:guid}
+  Auth: AllowAnonymous
+  Response: 200 OK (ServiceDto)
+
+POST  /api/services
+  Auth: Admin
+  Request Body:
+  {
+    "name": "string",
+    "description": "string|null",
+    "category": "string",
+    "price": "decimal",
+    "estimatedDurationMinutes": "int",
+    "doctorIds": ["guid", ...] | null
+  }
+  Response: 200 OK (ServiceDto)
+
+PUT  /api/services/{id:guid}
+  Auth: Admin
+  Request Body:
+  {
+    "name": "string",
+    "description": "string|null",
+    "category": "string",
+    "price": "decimal",
+    "estimatedDurationMinutes": "int",
+    "isActive": "bool"
+  }
+  Response: 200 OK (ServiceDto)
+
+DELETE  /api/services/{id:guid}
+  Auth: Admin
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 7. BOOKINGS CONTROLLER                                                      │
+│ Route: /api/bookings                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/bookings
+  Auth: Admin, Staff
+  Query: ?status=&doctorId=&patientId=&date=&appointmentDate=&fromDate=&toDate=&page=1&pageSize=20
+  Response: 200 OK
+  {
+    "items": [
+      {
+        "id": "guid",
+        "patientName": "string",
+        "doctorName": "string",
+        "serviceName": "string",
+        "serviceNames": ["string", ...],
+        "services": [ { BookingServiceItemDto } ],
+        "appointmentDate": "date",
+        "slotStartTime": "09:00",
+        "slotEndTime": "09:30",
+        "queueNumber": "int|null",
+        "status": "string",
+        "paymentStatus": "string",
+        "paymentMode": "string",
+        "isWalkIn": "bool",
+        "finalAmount": "decimal|null",
+        "totalFee": "decimal|null",
+        "patient": { PatientSummaryDto },
+        "doctor": { DoctorSummaryDto },
+        "service": { ServiceDto }
+      }
+    ],
+    "totalCount": "int",
+    "page": "int",
+    "pageSize": "int",
+    "totalPages": "int"
+  }
+
+POST  /api/bookings
+  Auth: Patient
+  Request Body:
+  {
+    "patientId": "guid|null",
+    "doctorId": "guid",
+    "serviceId": "guid|null",
+    "serviceIds": ["guid", ...] | null,
+    "appointmentDate": "2026-05-27",
+    "slotStartTime": "09:00",
+    "slotEndTime": "09:30",
+    "paymentMode": "string|null",
+    "notes": "string|null"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+GET  /api/bookings/{id:guid}
+  Auth: Authorize (any role)
+  Response: 200 OK
+  {
+    "id": "guid",
+    "patientId": "guid",
+    "doctorId": "guid",
+    "serviceId": "guid",
+    "serviceNames": ["string"],
+    "services": [ { "id": "guid", "name": "string", "description": "string|null", "estimatedDurationMinutes": "int|null", "price": "decimal|null" } ],
+    "appointmentDate": "date",
+    "slotStartTime": "09:00",
+    "slotEndTime": "09:30",
+    "status": "string",
+    "paymentStatus": "string",
+    "paymentMode": "string",
+    "queueNumber": "int|null",
+    "totalFee": "decimal",
+    "consultationFeeSnapshot": "decimal",
+    "serviceFeeSnapshot": "decimal",
+    "isWalkIn": "bool",
+    "proofType": "string|null",
+    "proofValue": "string|null",
+    "proofSubmittedAt": "datetime|null",
+    "cancellationReason": "string|null",
+    "notes": "string|null",
+    "rescheduledFromBookingId": "guid|null",
+    "receiptUrl": "string|null",
+    "orNumber": "string|null",
+    "checkedInAt": "datetime|null",
+    "checkedInByUserId": "string|null",
+    "doctorCompletedAt": "datetime|null",
+    "doctorCompletedByUserId": "string|null",
+    "finalAmount": "decimal|null",
+    "diagnosis": "string|null",
+    "doctorFeeNotes": "string|null",
+    "soapNotes": "string|null",
+    "followUpDate": "date|null",
+    "followUpInstructions": "string|null",
+    "prescriptionJson": "string|null",
+    "isProfessionalFeeWaived": "bool",
+    "professionalFeeWaivedReason": "string|null",
+    "professionalFeeWaivedByUserId": "string|null",
+    "professionalFeeWaivedAt": "datetime|null",
+    "createdAt": "datetime",
+    "updatedAt": "datetime",
+    "patient": { PatientSummaryDto },
+    "doctor": { DoctorSummaryDto },
+    "service": { ServiceDto },
+    "payment": { PaymentDto } | null
+  }
+
+PATCH  /api/bookings/{id:guid}/check-in
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "notes": "string|null"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/undo-check-in
+  Auth: Admin, Staff
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/doctor-complete
+  Auth: Doctor
+  Request Body:
+  {
+    "finalAmount": "decimal|null",
+    "isProfessionalFeeWaived": "bool",
+    "professionalFeeWaivedReason": "string|null",
+    "generalNotes": "string|null",
+    "soapNotes": "string|null",
+    "doctorFeeNotes": "string|null",
+    "notes": "string|null",
+    "diagnosis": "string|null",
+    "followUpDate": "date|null",
+    "followUpInstructions": "string|null",
+    "vitalSigns": {
+      "systolicBp": "int|null", "diastolicBp": "int|null",
+      "heartRate": "int|null", "respiratoryRate": "int|null",
+      "temperature": "decimal|null", "oxygenSaturation": "int|null",
+      "weight": "decimal|null", "height": "decimal|null",
+      "bmi": "decimal|null", "painScore": "int|null",
+      "takenAt": "datetime|null"
+    },
+    "soap": {
+      "subjective": "string|null", "objective": "string|null",
+      "assessment": "string|null", "plan": "string|null"
+    },
+    "diagnoses": [
+      { "diagnosisText": "string|null", "diagnosisCode": "string|null", "isPrimary": "bool", "notes": "string|null" }
+    ],
+    "prescription": {
+      "notes": "string|null",
+      "items": [
+        { "medicationName": "string|null", "strength": "string|null", "dosage": "string|null",
+          "route": "string|null", "frequency": "string|null", "duration": "string|null",
+          "quantity": "string|null", "instructions": "string|null" }
+      ]
+    },
+    "labOrders": [
+      { "notes": "string|null", "items": [ { "testName": "string|null", "testCode": "string|null", "instructions": "string|null" } ] }
+    ],
+    "followUp": {
+      "followUpDate": "date|null", "instructions": "string|null", "reason": "string|null"
+    },
+    "prescriptionItems": [ { DoctorCompletePrescriptionItemDto } ]
+  }
+  Response: 200 OK (BookingDetailDto)
+
+GET  /api/bookings/{id:guid}/consultation-record
+  Auth: Doctor, Admin, Staff
+  Response: 200 OK
+  {
+    "bookingId": "guid",
+    "consultationId": "guid|null",
+    "patientId": "guid",
+    "doctorId": "guid",
+    "bookingStatus": "string",
+    "generalNotes": "string|null",
+    "vitalSigns": { DoctorCompleteVitalSignsDto } | null,
+    "soap": { DoctorCompleteSoapDto } | null,
+    "diagnoses": [
+      { "id": "guid", "diagnosisText": "string", "diagnosisCode": "string|null", "isPrimary": "bool", "notes": "string|null" }
+    ],
+    "prescription": {
+      "id": "guid", "notes": "string|null",
+      "items": [ { "id": "guid", "medicineName": "string", "strength": "string|null", ... } ]
+    },
+    "labOrders": [
+      { "id": "guid", "notes": "string|null",
+        "items": [ { "id": "guid", "testName": "string", "testCode": "string|null", "instructions": "string|null" } ] }
+    ],
+    "followUp": { "id": "guid", "followUpDate": "date|null", "instructions": "string|null", "reason": "string|null" }
+  }
+
+PATCH  /api/bookings/{id:guid}/consultation-record
+  Auth: Doctor
+  Request Body:
+  {
+    "generalNotes": "string|null",
+    "soapNotes": "string|null",
+    "doctorFeeNotes": "string|null",
+    "notes": "string|null",
+    "diagnosis": "string|null",
+    "followUpDate": "date|null",
+    "followUpInstructions": "string|null",
+    "vitalSigns": { DoctorCompleteVitalSignsDto } | null,
+    "soap": { DoctorCompleteSoapDto } | null,
+    "diagnoses": [ { DoctorCompleteDiagnosisDto } ],
+    "prescription": { DoctorCompletePrescriptionDto } | null,
+    "labOrders": [ { DoctorCompleteLabOrderDto } ],
+    "followUp": { DoctorCompleteFollowUpDto } | null,
+    "prescriptionItems": [ { DoctorCompletePrescriptionItemDto } ]
+  }
+  Response: 200 OK (ConsultationRecordDto)
+
+PATCH  /api/bookings/{id:guid}/confirm
+  Auth: Admin, Staff
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/cancel
+  Auth: Authorize (any role)
+  Request Body:
+  {
+    "cancellationReason": "string"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/complete
+  Auth: Admin, Staff
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/no-show
+  Auth: Admin, Staff
+  Response: 200 OK (BookingDetailDto)
+
+PATCH  /api/bookings/{id:guid}/reschedule
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "newAppointmentDate": "2026-06-01",
+    "newSlotStartTime": "10:00",
+    "newSlotEndTime": "10:30"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+POST  /api/bookings/{id:guid}/proof
+  Auth: Patient
+  Request Body:
+  {
+    "proofType": "string",
+    "proofValue": "string"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+GET  /api/bookings/me?page=1&pageSize=20
+  Auth: Patient
+  Response: 200 OK (PagedResult of BookingSummaryDto)
+
+GET  /api/bookings/doctor/today
+  Auth: Doctor
+  Response: 200 OK [ BookingSummaryDto, ... ]
+
+GET  /api/bookings/doctor/today-summary
+  Auth: Doctor
+  Response: 200 OK
+  {
+    "bookedToday": "int",
+    "checkedIn": "int",
+    "waiting": "int",
+    "completed": "int",
+    "noShow": "int",
+    "cancelled": "int",
+    "items": [ BookingSummaryDto, ... ]
+  }
+
+GET  /api/bookings/doctor/upcoming
+  Auth: Doctor
+  Response: 200 OK [ BookingSummaryDto, ... ]
+
+GET  /api/bookings/doctor/patients
+  Auth: Doctor
+  Response: 200 OK
+  [
+    {
+      "patientId": "guid",
+      "patientName": "string",
+      "patientCode": "string|null",
+      "latestDate": "string",
+      "latestTime": "string|null",
+      "services": "string",
+      "status": "string",
+      "queueNumber": "int|null",
+      "latestBookingId": "guid"
+    }
+  ]
+
+GET  /api/bookings/staff/all?page=1&pageSize=20
+  Auth: Admin, Staff
+  Response: 200 OK (PagedResult of BookingSummaryDto)
+
+GET  /api/bookings/staff/today?doctorId=&status=&page=1&pageSize=20
+  Auth: Admin, Staff
+  Response: 200 OK (PagedResult of BookingSummaryDto)
+
+GET  /api/bookings/staff/for-payment?page=1&pageSize=20
+  Auth: Admin, Staff
+  Response: 200 OK
+  {
+    "items": [
+      {
+        "bookingId": "guid",
+        "paymentId": "guid",
+        "patientName": "string",
+        "doctorName": "string",
+        "services": ["string"],
+        "appointmentDate": "date",
+        "slotStartTime": "09:00",
+        "queueNumber": "int|null",
+        "status": "string",
+        "paymentStatus": "string",
+        "amountDue": "decimal",
+        "doctorCompletedAt": "datetime|null"
+      }
+    ],
+    "totalCount": "int", "page": "int", "pageSize": "int", "totalPages": "int"
+  }
+
+GET  /api/bookings/pending-verification
+  Auth: Admin, Staff
+  Response: 200 OK [ BookingSummaryDto, ... ]
+
+POST  /api/bookings/walk-in
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "patientId": "guid",
+    "doctorId": "guid",
+    "serviceId": "guid",
+    "notes": "string|null"
+  }
+  Response: 200 OK (BookingDetailDto)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 8. PATIENTS CONTROLLER                                                      │
+│ Route: /api/patients                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/patients?page=1&pageSize=20&search=
+  Auth: Admin, Staff
+  Response: 200 OK (PagedResult)
+  {
+    "items": [
+      {
+        "id": "guid",
+        "patientCode": "string",
+        "firstName": "string",
+        "middleName": "string|null",
+        "lastName": "string",
+        "fullName": "string",
+        "dateOfBirth": "date",
+        "sex": "string",
+        "contactNumber": "string|null",
+        "email": "string|null",
+        "userId": "string|null",
+        "hasAccount": "bool",
+        "isGuest": "bool"
+      }
+    ],
+    "totalCount": "int", "page": "int", "pageSize": "int", "totalPages": "int"
+  }
+
+POST  /api/patients
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "firstName": "string",
+    "middleName": "string|null",
+    "lastName": "string",
+    "dateOfBirth": "2026-01-15",
+    "sex": "string",
+    "civilStatus": "string|null",
+    "address": "string|null",
+    "city": "string|null",
+    "zipCode": "string|null",
+    "contactNumber": "string|null",
+    "email": "string|null",
+    "emergencyContactName": "string|null",
+    "emergencyContactNumber": "string|null",
+    "emergencyContactRelationship": "string|null",
+    "bloodType": "string|null",
+    "philHealthNumber": "string|null",
+    "hmoProvider": "string|null",
+    "hmoCardNumber": "string|null",
+    "userId": "string|null"
+  }
+  Response: 200 OK (PatientDetailDto)
+
+GET  /api/patients/{id:guid}
+  Auth: Admin, Staff, Doctor
+  Response: 200 OK
+  {
+    "id": "guid",
+    "patientCode": "string",
+    "userId": "string|null",
+    "hasAccount": "bool",
+    "firstName": "string",
+    "middleName": "string|null",
+    "lastName": "string",
+    "dateOfBirth": "date",
+    "sex": "string",
+    "civilStatus": "string|null",
+    "address": "string|null",
+    "city": "string|null",
+    "zipCode": "string|null",
+    "contactNumber": "string|null",
+    "email": "string|null",
+    "emergencyContactName": "string|null",
+    "emergencyContactNumber": "string|null",
+    "emergencyContactRelationship": "string|null",
+    "bloodType": "string|null",
+    "philHealthNumber": "string|null",
+    "hmoProvider": "string|null",
+    "hmoCardNumber": "string|null",
+    "isGuest": "bool",
+    "isEmailVerified": "bool",
+    "consentedAt": "datetime|null",
+    "consentVersion": "string|null",
+    "createdAt": "datetime",
+    "updatedAt": "datetime",
+    "fullName": "string"
+  }
+
+PUT  /api/patients/{id:guid}
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "firstName": "string|null", "middleName": "string|null", "lastName": "string|null",
+    "dateOfBirth": "date|null", "sex": "string|null",
+    "civilStatus": "string|null", "address": "string|null", "city": "string|null",
+    "zipCode": "string|null", "contactNumber": "string|null", "email": "string|null",
+    "emergencyContactName": "string|null", "emergencyContactNumber": "string|null",
+    "emergencyContactRelationship": "string|null", "bloodType": "string|null",
+    "philHealthNumber": "string|null", "hmoProvider": "string|null",
+    "hmoCardNumber": "string|null", "userId": "string|null"
+  }
+  Response: 200 OK (PatientDetailDto)
+
+POST  /api/patients/{id:guid}/portal-account
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "email": "string",
+    "temporaryPassword": "string"
+  }
+  Response: 200 OK (PatientDetailDto)
+
+GET  /api/patients/me
+  Auth: Patient
+  Response: 200 OK (PatientDetailDto)
+
+PUT  /api/patients/me
+  Auth: Patient
+  Request Body: (same as UpdatePatientDto above)
+  Response: 200 OK (PatientDetailDto)
+
+POST  /api/patients/me/consent
+  Auth: Patient
+  Request Body:
+  {
+    "consentVersion": "string"
+  }
+  Response: 200 OK (PatientDetailDto)
+
+GET  /api/patients/{patientId:guid}/documents
+  Auth: Admin, Staff, Doctor, Patient
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "patientId": "guid",
+      "bookingId": "guid|null",
+      "consultationId": "guid|null",
+      "documentType": "string",
+      "title": "string|null",
+      "description": "string|null",
+      "fileUrl": "string|null",
+      "fileName": "string|null",
+      "fileContentType": "string|null",
+      "fileSize": "long|null",
+      "source": "string",
+      "uploadedByUserId": "string|null",
+      "uploadedAt": "datetime",
+      "createdAt": "datetime"
+    }
+  ]
+
+GET  /api/patients/me/documents
+  Auth: Patient
+  Response: 200 OK [ PatientDocumentDto, ... ]
+
+POST  /api/patients/{patientId:guid}/documents
+  Auth: Admin, Staff, Patient
+  Content-Type: multipart/form-data
+  Form Fields: bookingId (guid?), consultationId (guid?), documentType (string?), title (string?), description (string?), file (IFormFile)
+  Response: 200 OK (PatientDocumentDto)
+
+POST  /api/patients/me/documents
+  Auth: Patient
+  Content-Type: multipart/form-data
+  Form Fields: same as above
+  Response: 200 OK (PatientDocumentDto)
+
+GET  /api/patients/{patientId:guid}/documents/{documentId:guid}/file
+  Auth: Admin, Staff, Doctor, Patient
+  Response: 200 (file download)
+
+GET  /api/patients/{patientId:guid}/lab-results
+  Auth: Admin, Staff, Doctor, Patient
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "patientId": "guid",
+      "bookingId": "guid|null",
+      "consultationId": "guid|null",
+      "labOrderItemId": "guid|null",
+      "resultTitle": "string|null",
+      "resultText": "string|null",
+      "fileUrl": "string|null",
+      "fileName": "string|null",
+      "fileContentType": "string|null",
+      "status": "string",
+      "uploadedByUserId": "string|null",
+      "uploadedAt": "datetime",
+      "createdAt": "datetime"
+    }
+  ]
+
+GET  /api/patients/me/lab-results
+  Auth: Patient
+  Response: 200 OK [ PatientLabResultDto, ... ]
+
+POST  /api/patients/{patientId:guid}/lab-results
+  Auth: Admin, Staff, Patient
+  Content-Type: multipart/form-data
+  Form Fields: bookingId (guid?), consultationId (guid?), resultTitle (string?), resultText (string?), file (IFormFile)
+  Response: 200 OK (PatientLabResultDto)
+
+POST  /api/patients/me/lab-results
+  Auth: Patient
+  Content-Type: multipart/form-data
+  Form Fields: same as above
+  Response: 200 OK (PatientLabResultDto)
+
+GET  /api/patients/{patientId:guid}/clinical-history?from=&to=&bookingId=
+  Auth: Admin, Staff, Doctor
+  Response: 200 OK
+  {
+    "patient": {
+      "id": "guid", "patientCode": "string", "fullName": "string",
+      "dateOfBirth": "string|null", "sex": "string|null",
+      "contactNumber": "string|null", "email": "string|null",
+      "lastVisitDate": "string|null", "nextAppointmentDate": "string|null"
+    },
+    "summary": {
+      "totalAppointments": "int",
+      "completedConsultations": "int",
+      "activePrescriptions": "int",
+      "labResultsCount": "int",
+      "documentsCount": "int",
+      "vaccinationsCount": "int",
+      "lastVisitDate": "string|null",
+      "nextAppointmentDate": "string|null"
+    },
+    "timeline": [ { "id": "string", "type": "string", "date": "string", "title": "string", ... } ],
+    "appointments": [ { PatientClinicalHistoryAppointmentDto } ],
+    "consultations": [ { PatientClinicalHistoryConsultationDto } ],
+    "documents": [ { PatientClinicalHistoryDocumentDto } ],
+    "labResults": [ { PatientClinicalHistoryLabResultDto } ],
+    "vaccinations": [ { PatientClinicalHistoryVaccinationDto } ],
+    "followUps": [ { PatientClinicalHistoryFollowUpDto } ],
+    "prescriptions": [ { PatientClinicalHistoryPrescriptionDto } ]
+  }
+
+GET  /api/patients/{patientId:guid}/lab-results/{labResultId:guid}/file
+  Auth: Admin, Staff, Doctor, Patient
+  Response: 200 (file download)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 9. PATIENT VACCINATIONS CONTROLLER                                          │
+│ Route: /api/patients (nested)                                                │
+│ Roles: Admin, Staff, Doctor                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/patients/{patientId:guid}/vaccinations
+  Auth: Admin, Staff, Doctor
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "patientId": "guid",
+      "bookingId": "guid|null",
+      "consultationId": "guid|null",
+      "doctorId": "guid|null",
+      "administeredByUserId": "string|null",
+      "vaccineName": "string",
+      "vaccineCode": "string|null",
+      "manufacturer": "string|null",
+      "lotNumber": "string|null",
+      "expirationDate": "date|null",
+      "administeredDate": "date",
+      "doseNumber": "string|null",
+      "doseAmount": "decimal|null",
+      "doseUnit": "string|null",
+      "route": "string|null",
+      "site": "string|null",
+      "status": "string",
+      "source": "string",
+      "nextDueDate": "date|null",
+      "visEditionDate": "date|null",
+      "visProvidedDate": "date|null",
+      "notes": "string|null",
+      "reactionNotes": "string|null",
+      "createdAt": "datetime",
+      "updatedAt": "datetime"
+    }
+  ]
+
+POST  /api/patients/{patientId:guid}/vaccinations
+  Auth: Admin, Staff, Doctor
+  Request Body:
+  {
+    "bookingId": "guid|null",
+    "consultationId": "guid|null",
+    "doctorId": "guid|null",
+    "vaccineName": "string",
+    "vaccineCode": "string|null",
+    "manufacturer": "string|null",
+    "lotNumber": "string|null",
+    "expirationDate": "date|null",
+    "administeredDate": "date",
+    "doseNumber": "string|null",
+    "doseAmount": "decimal|null",
+    "doseUnit": "string|null",
+    "route": "string|null",
+    "site": "string|null",
+    "status": "string",
+    "source": "string",
+    "nextDueDate": "date|null",
+    "visEditionDate": "date|null",
+    "visProvidedDate": "date|null",
+    "notes": "string|null",
+    "reactionNotes": "string|null"
+  }
+  Response: 200 OK (PatientVaccinationDto)
+
+PUT  /api/patients/{patientId:guid}/vaccinations/{vaccinationId:guid}
+  Auth: Admin, Staff, Doctor
+  Request Body: (same fields as Create + all optional)
+  Response: 200 OK (PatientVaccinationDto)
+
+DELETE  /api/patients/{patientId:guid}/vaccinations/{vaccinationId:guid}
+  Auth: Admin, Staff
+  Response: 204 No Content
+
+GET  /api/patients/me/vaccinations
+  Auth: Patient
+  Response: 200 OK [ PatientVaccinationDto, ... ]
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 10. PAYMENTS CONTROLLER                                                     │
+│ Route: /api/payments                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/payments/booking/{bookingId:guid}
+  Auth: Admin, Staff
+  Response: 200 OK
+  {
+    "id": "guid",
+    "bookingId": "guid",
+    "amount": "decimal",
+    "paymentMethod": "string",
+    "referenceNumber": "string|null",
+    "proofImageUrl": "string|null",
+    "status": "string",
+    "orNumber": "string|null",
+    "verifiedByUserId": "string|null",
+    "verifiedAt": "datetime|null",
+    "waivedByUserId": "string|null",
+    "waivedAt": "datetime|null",
+    "waivedReason": "string|null",
+    "refundedByUserId": "string|null",
+    "refundedAt": "datetime|null",
+    "refundReason": "string|null",
+    "createdAt": "datetime"
+  }
+
+PATCH  /api/payments/{id:guid}/confirm
+  Auth: Admin, Staff
+  Request Body:
+  {
+    "paymentMethod": "string",
+    "amountReceived": "decimal",
+    "referenceNumber": "string|null",
+    "notes": "string|null"
+  }
+  Response: 200 OK
+  {
+    "bookingId": "guid",
+    "paymentId": "guid",
+    "orNumber": "string|null",
+    "patientName": "string",
+    "doctorName": "string",
+    "services": ["string"],
+    "appointmentDate": "date",
+    "slotStartTime": "09:00",
+    "doctorCompletedAt": "datetime|null",
+    "paidAt": "datetime|null",
+    "amountPaid": "decimal",
+    "paymentMethod": "string",
+    "referenceNumber": "string|null",
+    "cashierName": "string|null",
+    "verifiedByName": "string|null",
+    "clinicName": "string",
+    "clinicAddress": "string|null",
+    "isWaived": "bool",
+    "waivedReason": "string|null",
+    "waivedByName": "string|null",
+    "waivedAt": "datetime|null"
+  }
+
+GET  /api/payments/{id:guid}/receipt
+  Auth: Admin, Staff
+  Response: 200 OK (ReceiptDto)
+
+PATCH  /api/payments/{id:guid}/waive
+  Auth: Admin
+  Request Body:
+  {
+    "waivedReason": "string"
+  }
+  Response: 200 OK (PaymentDto)
+
+PATCH  /api/payments/{id:guid}/refund
+  Auth: Admin
+  Request Body:
+  {
+    "refundReason": "string"
+  }
+  Response: 200 OK (PaymentDto)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 11. ADMIN DASHBOARD CONTROLLER                                              │
+│ Route: /api/admin                                                           │
+│ Role: Admin                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/admin/dashboard/summary?from=2026-05-01&to=2026-05-31
+  Auth: Admin
+  Response: 200 OK
+  {
+    "totalAppointmentsToday": "int",
+    "pendingAppointments": "int",
+    "checkedInToday": "int",
+    "completedToday": "int",
+    "unpaidCount": "int",
+    "paidCount": "int",
+    "revenueThisMonth": "decimal",
+    "revenueTrend": [
+      { "label": "string", "date": "string", "amount": "decimal" }
+    ],
+    "mostBookedDoctors": [
+      { "doctorId": "guid", "doctorName": "string", "specialization": "string", "bookingCount": "int" }
+    ],
+    "todaysAppointments": [
+      {
+        "bookingId": "guid",
+        "queueNumber": "int|null",
+        "patientId": "guid",
+        "patientName": "string",
+        "doctorId": "guid",
+        "doctorName": "string",
+        "serviceId": "guid",
+        "serviceName": "string",
+        "serviceNames": ["string"],
+        "slotStartTime": "string",
+        "slotEndTime": "string",
+        "status": "string",
+        "paymentStatus": "string",
+        "paymentMode": "string",
+        "totalFee": "decimal|null",
+        "finalAmount": "decimal|null"
+      }
+    ]
+  }
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 12. STAFF CONTROLLER                                                        │
+│ Route: /api/admin/staff                                                     │
+│ Role: Admin                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/admin/staff
+  Auth: Admin
+  Response: 200 OK
+  [
+    {
+      "id": "string",
+      "fullName": "string",
+      "email": "string",
+      "role": "string",
+      "status": "string",
+      "isInvite": "bool"
+    }
+  ]
+
+POST  /api/admin/staff/invite
+  Auth: Admin
+  Request Body:
+  {
+    "email": "string",
+    "full_name": "string",
+    "phone": "string|null"
+  }
+  Response: 200 OK (StaffMemberDto)
+
+PUT  /api/admin/staff/invite/{inviteId:guid}/revoke
+  Auth: Admin
+  Response: 204 No Content
+
+PUT  /api/admin/staff/update-status/{id:guid}
+  Auth: Admin
+  Request Body:
+  {
+    "action": "string"  // e.g. "activate" | "deactivate"
+  }
+  Response: 200 OK (StaffMemberDto)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 13. SETTINGS CONTROLLER                                                     │
+│ Route: /api/settings                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/settings
+  Auth: AllowAnonymous
+  Response: 200 OK
+  {
+    "id": "guid",
+    "clinicName": "string",
+    "logoUrl": "string|null",
+    "primaryColor": "string",
+    "secondaryColor": "string",
+    "address": "string|null",
+    "phone": "string|null",
+    "contactEmail": "string|null",
+    "facebookUrl": "string|null",
+    "instagramUrl": "string|null",
+    "operatingHoursJson": "string",
+    "cancellationDeadlineHours": "int",
+    "patientPortalEnabled": "bool",
+    "vaccinationReminderEnabled": "bool",
+    "followUpReminderEnabled": "bool",
+    "isPayAtClinicMode": "bool",
+    "payAtClinicNoShowWindowMinutes": "int",
+    "privacyPolicyText": "string|null",
+    "consentVersion": "string",
+    "gcashAccountName": "string|null",
+    "gcashNumber": "string|null",
+    "gcashQrImageUrl": "string|null",
+    "mayaAccountName": "string|null",
+    "mayaNumber": "string|null",
+    "mayaQrImageUrl": "string|null",
+    "bankName": "string|null",
+    "bankAccountName": "string|null",
+    "bankAccountNumber": "string|null",
+    "updatedAt": "datetime"
+  }
+
+PUT  /api/settings
+  Auth: Admin
+  Request Body:
+  {
+    "id": "guid|null",
+    "clinicName": "string|null", "logoUrl": "string|null",
+    "primaryColor": "string|null", "secondaryColor": "string|null",
+    "address": "string|null", "phone": "string|null",
+    "contactEmail": "string|null", "facebookUrl": "string|null",
+    "instagramUrl": "string|null", "operatingHoursJson": "string|null",
+    "cancellationDeadlineHours": "int|null",
+    "patientPortalEnabled": "bool|null",
+    "vaccinationReminderEnabled": "bool|null",
+    "followUpReminderEnabled": "bool|null",
+    "isPayAtClinicMode": "bool|null",
+    "payAtClinicNoShowWindowMinutes": "int|null",
+    "privacyPolicyText": "string|null", "consentVersion": "string|null",
+    "gcashAccountName": "string|null", "gcashNumber": "string|null",
+    "gcashQrImageUrl": "string|null",
+    "mayaAccountName": "string|null", "mayaNumber": "string|null",
+    "mayaQrImageUrl": "string|null",
+    "bankName": "string|null", "bankAccountName": "string|null",
+    "bankAccountNumber": "string|null", "updatedAt": "datetime|null"
+  }
+  Response: 200 OK (ClinicSettingsDto)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 14. DEVICE TOKENS CONTROLLER                                                │
+│ Route: /api/device-tokens                                                   │
+│ Auth: Authorize (any role)                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+POST  /api/device-tokens
+  Auth: Authorize (any role)
+  Request Body:
+  {
+    "token": "string",
+    "platform": "string|null"
+  }
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 15. NOTIFICATIONS CONTROLLER                                                │
+│ Route: /api/notifications                                                   │
+│ Auth: Authorize (any role)                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/notifications
+  Auth: Authorize (any role)
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "userId": "string",
+      "title": "string",
+      "body": "string",
+      "isRead": "bool",
+      "createdAt": "datetime",
+      "readAt": "datetime|null"
+    }
+  ]
+
+PUT  /api/notifications/{id:guid}/read
+  Auth: Authorize (any role)
+  Response: 204 No Content
+
+PUT  /api/notifications/read-all
+  Auth: Authorize (any role)
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 16. REVIEWS CONTROLLER                                                      │
+│ Route: /api/reviews                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/reviews?doctorId={guid}
+  Auth: AllowAnonymous
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "doctorId": "guid",
+      "patientId": "guid",
+      "patientName": "string",
+      "rating": "int",
+      "comment": "string|null",
+      "createdAt": "datetime"
+    }
+  ]
+
+POST  /api/reviews
+  Auth: Patient
+  Request Body:
+  {
+    "doctorId": "guid",
+    "bookingId": "guid",
+    "rating": "int",
+    "comment": "string|null"
+  }
+  Response: 200 OK (ReviewResponseDto)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 17. MEDICAL RECORDS CONTROLLER                                              │
+│ Route: /api/medical-records                                                 │
+│ Roles: Admin, Doctor, Patient                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+--- Group A: Patient Queries ---
+
+GET  /api/medical-records/consultations?patientId={guid}
+GET  /api/medical-records/prescriptions?patientId={guid}
+GET  /api/medical-records/allergies?patientId={guid}
+GET  /api/medical-records/lab-orders?patientId={guid}
+GET  /api/medical-records/lab-results?patientId={guid}
+GET  /api/medical-records/vaccinations?patientId={guid}
+GET  /api/medical-records/follow-ups?patientId={guid}
+  Auth: Admin, Doctor, Patient
+  Response: 200 OK [ respective Dto, ... ]
+
+--- Group B: Consultation sub-resources ---
+
+GET  /api/medical-records/consultations/{id:guid}
+  Auth: Admin, Doctor, Patient
+  Response: 200 OK
+  {
+    "id": "guid",
+    "patientId": "guid",
+    "doctorId": "guid|null",
+    "bookingId": "guid|null",
+    "consultationDate": "string",
+    "chiefComplaint": "string",
+    "subjective": "string|null",
+    "objective": "string|null",
+    "assessment": "string|null",
+    "plan": "string|null",
+    "status": "string",
+    "isLocked": "bool",
+    "historyOfPresentIllness": "string|null",
+    "peGeneralFindings": "string|null",
+    "consultationTime": "string|null",
+    "generalNotes": "string|null",
+    "followUpDate": "string|null",
+    "createdAt": "datetime",
+    "updatedAt": "datetime",
+    "vitalSigns": { VitalSignsDto } | null,
+    "diagnoses": [ { DiagnosisDto } ],
+    "prescriptionIds": ["string"],
+    "labRequestIds": ["string"]
+  }
+
+POST  /api/medical-records/consultations
+  Auth: Admin, Doctor, Patient
+  Request Body:
+  {
+    "bookingId": "guid",
+    "chiefComplaint": "string",
+    "subjective": "string|null",
+    "objective": "string|null",
+    "assessment": "string|null",
+    "plan": "string|null",
+    "historyOfPresentIllness": "string|null",
+    "peGeneralFindings": "string|null",
+    "followUpDate": "string|null",
+    "consultationTime": "string|null"
+  }
+  Response: 201 Created (ConsultationDto)
+
+PUT  /api/medical-records/consultations/{id:guid}
+  Auth: Admin, Doctor, Patient
+  Request Body: (same CreateConsultationDto schema)
+  Response: 200 OK (ConsultationDto)
+
+POST  /api/medical-records/consultations/{id:guid}/lock
+  Auth: Admin, Doctor, Patient
+  Response: 200 OK (ConsultationDto with isLocked=true)
+
+POST  /api/medical-records/consultations/{id:guid}/vital-signs
+  Auth: Admin, Doctor, Patient
+  Request Body:
+  {
+    "id": "guid|null",
+    "systolicBp": "int|null",
+    "diastolicBp": "int|null",
+    "heartRate": "int|null",
+    "respiratoryRate": "int|null",
+    "temperature": "decimal|null",
+    "oxygenSaturation": "int|null",
+    "weight": "decimal|null",
+    "height": "decimal|null",
+    "bmi": "decimal|null",
+    "painScore": "int|null"
+  }
+  Response: 200 OK (VitalSignsDto)
+
+POST  /api/medical-records/consultations/{id:guid}/diagnoses
+  Auth: Admin, Doctor, Patient
+  Request Body:
+  {
+    "icd10Code": "string|null",
+    "icd10Description": "string|null",
+    "description": "string",
+    "type": "string"
+  }
+  Response: 200 OK (DiagnosisDto)
+
+DELETE  /api/medical-records/consultations/{id:guid}/diagnoses/{diagnosisId:guid}
+  Auth: Admin, Doctor, Patient
+  Response: 204 No Content
+
+POST  /api/medical-records/consultations/{id:guid}/prescriptions
+  Auth: Admin, Doctor, Patient
+  Request Body:
+  {
+    "notes": "string|null",
+    "items": [
+      {
+        "medicineName": "string",
+        "genericName": "string|null",
+        "dosageForm": "string",
+        "strength": "string",
+        "sig": "string",
+        "quantity": "int",
+        "frequency": "string|null",
+        "duration": "string|null",
+        "route": "string|null",
+        "instructions": "string|null",
+        "isControlledSubstance": "bool|null",
+        "brandName": "string|null"
+      }
+    ]
+  }
+  Response: 200 OK (PrescriptionDto)
+
+PUT  /api/medical-records/consultations/{id:guid}/prescriptions/{prescriptionId:guid}
+  Auth: Admin, Doctor, Patient
+  Request Body: (same CreatePrescriptionDto)
+  Response: 200 OK (PrescriptionDto)
+
+DELETE  /api/medical-records/consultations/{id:guid}/prescriptions/{prescriptionId:guid}
+  Response: 204 No Content
+
+POST  /api/medical-records/consultations/{id:guid}/lab-requests
+  Request Body:
+  {
+    "testName": "string",
+    "reason": "string|null"
+  }
+  Response: 200 OK (LabOrderDto)
+
+DELETE  /api/medical-records/consultations/{id:guid}/lab-requests/{requestId:guid}
+  Response: 204 No Content
+
+--- Group C: Standalone CRUD ---
+
+POST  /api/medical-records/allergies
+  Request Body:
+  {
+    "patientId": "guid",
+    "allergen": "string",
+    "reaction": "string",
+    "severity": "string",
+    "allergenType": "string|null",
+    "notes": "string|null"
+  }
+  Response: 200 OK (AllergyDto)
+
+PUT  /api/medical-records/allergies/{id:guid}
+  Request Body:
+  {
+    "allergen": "string|null",
+    "reaction": "string|null",
+    "severity": "string|null",
+    "allergenType": "string|null",
+    "notes": "string|null"
+  }
+  Response: 200 OK (AllergyDto)
+
+DELETE  /api/medical-records/allergies/{id:guid}
+  Response: 204 No Content
+
+POST  /api/medical-records/lab-results
+  Request Body:
+  {
+    "labRequestId": "guid|null",
+    "patientId": "guid",
+    "fileName": "string",
+    "resultDate": "string",
+    "notes": "string|null",
+    "consultationId": "guid|null"
+  }
+  Response: 200 OK (LabResultDto)
+
+DELETE  /api/medical-records/lab-results/{id:guid}
+  Response: 204 No Content
+
+POST  /api/medical-records/vaccinations
+  Request Body:
+  {
+    "patientId": "guid",
+    "vaccineName": "string",
+    "brandName": "string|null",
+    "doseNumber": "string|null",
+    "lotNumber": "string|null",
+    "dateGiven": "string",
+    "administeredBy": "string|null",
+    "nextDoseDate": "string|null",
+    "remarks": "string|null"
+  }
+  Response: 200 OK (VaccinationDto)
+
+PUT  /api/medical-records/vaccinations/{id:guid}
+  Request Body:
+  {
+    "vaccineName": "string|null",
+    "brandName": "string|null",
+    "doseNumber": "string|null",
+    "lotNumber": "string|null",
+    "dateGiven": "string|null",
+    "administeredBy": "string|null",
+    "nextDoseDate": "string|null",
+    "remarks": "string|null"
+  }
+  Response: 200 OK (VaccinationDto)
+
+DELETE  /api/medical-records/vaccinations/{id:guid}
+  Response: 204 No Content
+
+POST  /api/medical-records/follow-ups
+  Request Body:
+  {
+    "consultationId": "guid",
+    "patientId": "guid",
+    "doctorId": "guid|null",
+    "followUpDate": "string",
+    "reason": "string",
+    "status": "string"
+  }
+  Response: 200 OK (FollowUpDto)
+
+PUT  /api/medical-records/follow-ups/{id:guid}
+  Request Body:
+  {
+    "followUpDate": "string|null",
+    "reason": "string|null",
+    "status": "string|null"
+  }
+  Response: 200 OK (FollowUpDto)
+
+DELETE  /api/medical-records/follow-ups/{id:guid}
+  Response: 204 No Content
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 18. PATIENT DOCUMENTS CONTROLLER (Patient-facing endpoints)                  │
+│ Route: /api                                                                 │
+│ Role: Patient                                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/medical-records/me
+  Auth: Patient
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "bookingId": "guid",
+      "patientId": "guid",
+      "doctorId": "guid",
+      "doctorName": "string",
+      "appointmentDate": "date",
+      "diagnosis": "string|null",
+      "soapNotes": "string|null",
+      "doctorNotes": "string|null",
+      "followUpInstructions": "string|null",
+      "followUpDate": "date|null",
+      "notes": "string|null",
+      "createdAt": "datetime",
+      "updatedAt": "datetime"
+    }
+  ]
+
+GET  /api/prescriptions/me
+  Auth: Patient
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "bookingId": "guid",
+      "patientId": "guid",
+      "doctorId": "guid",
+      "doctorName": "string",
+      "appointmentDate": "date",
+      "medicineName": "string|null",
+      "genericName": "string|null",
+      "strength": "string|null",
+      "unit": "string|null",
+      "route": "string|null",
+      "frequency": "string|null",
+      "duration": "string|null",
+      "instructions": "string|null",
+      "createdAt": "datetime",
+      "items": [
+        {
+          "id": "guid",
+          "medicineName": "string",
+          "genericName": "string|null",
+          "dosageForm": "string|null",
+          "strength": "string|null",
+          "sig": "string|null",
+          "quantity": "int",
+          "frequency": "string|null",
+          "duration": "string|null",
+          "instructions": "string|null",
+          "isControlledSubstance": "bool",
+          "route": "string|null",
+          "routeDescription": "string|null",
+          "unitOfMeasure": "string|null",
+          "unitOfMeasureDescription": "string|null",
+          "brandName": "string|null",
+          "frequencyCode": "string|null"
+        }
+      ]
+    }
+  ]
+
+GET  /api/follow-ups/me
+  Auth: Patient
+  Response: 200 OK
+  [
+    {
+      "id": "guid",
+      "bookingId": "guid",
+      "patientId": "guid",
+      "doctorId": "guid",
+      "doctorName": "string",
+      "appointmentDate": "date",
+      "followUpDate": "date|null",
+      "followUpInstructions": "string|null",
+      "notes": "string|null",
+      "createdAt": "datetime"
+    }
+  ]
+
+GET  /api/patient-documents/me/bookings/{bookingId:guid}/pdf
+  Auth: Patient
+  Response: 200 (application/pdf)
+
+GET  /api/patient-documents/me/prescriptions/{prescriptionId:guid}/pdf
+  Auth: Patient
+  Response: 200 (application/pdf)
+
+GET  /api/patient-documents/me/medical-records/{recordId:guid}/pdf
+  Auth: Patient
+  Response: 200 (application/pdf)
+
+GET  /api/patient-documents/me/all.pdf
+  Auth: Patient
+  Response: 200 (application/pdf - combined clinical records)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 19. DRUG INTERACTIONS CONTROLLER                                            │
+│ Route: /api/drug-interactions                                                │
+│ Role: Doctor                                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+POST  /api/drug-interactions/allergy-check
+  Auth: Doctor
+  Request Body:
+  {
+    "drugName": "string",
+    "allergies": ["string", ...]
+  }
+  Response: 200 OK (mock/simulated)
+  {
+    "conflict": false,
+    "unavailable": true,
+    "message": "Drug-allergy check unavailable - verify manually before prescribing"
+  }
+
+POST  /api/drug-interactions/check
+  Auth: Doctor
+  Request Body:
+  {
+    "drugs": [
+      {
+        "medicineName": "string",
+        "genericName": "string|null",
+        "strength": "string|null",
+        "route": "string|null",
+        "frequency": "string|null"
+      }
+    ]
+  }
+  Response: 200 OK (mock/simulated)
+  {
+    "unavailable": true,
+    "warnings": []
+  }
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 20. REPORTS CONTROLLER                                                      │
+│ Route: /api/reports                                                         │
+│ Role: Admin                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+GET  /api/reports/unpaid-completed-visits
+  Auth: Admin
+  Response: 200 OK
+  [
+    {
+      "patient": "string",
+      "doctor": "string",
+      "service": "string",
+      "visitDate": "string",
+      "amount": "decimal",
+      "paymentStatus": "string"
+    }
+  ]
+
+GET  /api/reports/pending-follow-ups
+  Auth: Admin
+  Response: 200 OK
+  [
+    {
+      "patient": "string",
+      "doctor": "string",
+      "followUpDate": "string",
+      "reason": "string",
+      "status": "string"
+    }
+  ]
+
+GET  /api/reports/daily-booking-summary
+  Auth: Admin
+  Response: 200 OK
+  [
+    {
+      "date": "string",
+      "totalBookings": "int",
+      "completed": "int",
+      "cancelled": "int",
+      "noShow": "int",
+      "revenue": "decimal"
+    }
+  ]
+
+
+================================================================================
+  COMMON SHARED DTOs
+================================================================================
+
+ApiErrorResponseDto (used globally for errors):
+{
+  "statusCode": "int",
+  "message": "string",
+  "details": "string|null",
+  "traceId": "string",
+  "errors": { "fieldName": ["error1", "error2"] } | null
+}
+
+PagedResult<T> (used for paginated lists):
+{
+  "items": [ T, ... ],
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "totalPages": "int"
+}
+
+================================================================================
+  END OF API DOCUMENTATION
+================================================================================

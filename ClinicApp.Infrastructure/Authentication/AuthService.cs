@@ -255,6 +255,11 @@ public sealed class AuthService : IAuthService
             user.AvatarUrl = request.AvatarUrl;
         }
 
+        if (request.PhoneNumber is not null)
+        {
+            user.PhoneNumber = request.PhoneNumber;
+        }
+
         user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
@@ -308,7 +313,8 @@ public sealed class AuthService : IAuthService
             Email: user.Email ?? string.Empty,
             Role: user.Role,
             AvatarUrl: user.AvatarUrl,
-            IsFirstLogin: user.IsFirstLogin);
+            IsFirstLogin: user.IsFirstLogin,
+            PhoneNumber: user.PhoneNumber);
     }
 
     private async Task<ApplicationUser> LinkOrCreateSocialUserAsync(
