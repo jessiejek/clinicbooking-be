@@ -9,10 +9,12 @@ namespace ClinicApp.Infrastructure.Notifications;
 public sealed class NotificationService : INotificationService
 {
     private readonly AppDbContext _db;
+    private readonly IPushNotificationService _push;
 
-    public NotificationService(AppDbContext db)
+    public NotificationService(AppDbContext db, IPushNotificationService push)
     {
         _db = db;
+        _push = push;
     }
 
     public async Task<List<NotificationResponseDto>> GetUserNotificationsAsync(string userId, CancellationToken ct = default)
@@ -56,6 +58,9 @@ public sealed class NotificationService : INotificationService
 
         _db.Notifications.Add(entity);
         await _db.SaveChangesAsync(ct);
+
+        // Fire-and-forget push notification
+        _ = _push.SendPushAsync(userId, title, message, navigateTo, ct);
 
         return Map(entity);
     }

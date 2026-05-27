@@ -43,6 +43,12 @@ builder.Services.AddScoped<INotificationService, ClinicApp.Infrastructure.Notifi
 builder.Services.AddScoped<IDeviceTokenService, ClinicApp.Infrastructure.DeviceTokens.DeviceTokenService>();
 builder.Services.AddScoped<IAnnouncementService, ClinicApp.Infrastructure.Announcements.AnnouncementService>();
 builder.Services.AddScoped<IReviewService, ClinicApp.Infrastructure.Reviews.ReviewService>();
+builder.Services.AddScoped<IAuditLogService, ClinicApp.Infrastructure.AuditLogs.AuditLogService>();
+builder.Services.AddScoped<IPushNotificationService, ClinicApp.Infrastructure.PushNotifications.PushNotificationService>();
+builder.Services.AddScoped<IFileUploadService>(_ =>
+    new ClinicApp.Infrastructure.FileUploads.FileUploadService(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads"),
+        "https://localhost:5001"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -83,6 +89,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseCors("LocalDev");
+app.UseStaticFiles();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
