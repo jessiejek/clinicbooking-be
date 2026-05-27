@@ -31,7 +31,7 @@ public sealed class ReportsController : ControllerBase
             {
                 Patient = b.Patient != null ? $"{b.Patient.FirstName} {b.Patient.LastName}" : "Unknown",
                 Doctor = b.Doctor != null ? b.Doctor.FullName : "Unknown",
-                Service = b.BookingServiceItems.Select(s => s.Name).FirstOrDefault() ?? "",
+                Service = b.BookingServiceItems.Select(s => s.ServiceNameSnapshot).FirstOrDefault() ?? "",
                 VisitDate = b.AppointmentDate.ToString(),
                 Amount = b.FinalAmount ?? 0,
                 PaymentStatus = b.PaymentStatus ?? "Unpaid"
@@ -46,25 +46,42 @@ public sealed class ReportsController : ControllerBase
     {
         var rows = await _db.ConsultationFollowUps
             .AsNoTracking()
-            .Include(f => f.Consultation)
-                .ThenInclude(c => c.Booking)
             .Where(f => f.Status == "Pending")
             .OrderBy(f => f.FollowUpDate)
-            .Select(f => new PendingFollowUpRow
+            .ToListAsync(ct);
+
+        var patientIds = rows.Where(f => f.PatientId != Guid.Empty).Select(f => f.PatientId).Distinct().ToList();
+        var bookingIds = rows.Where(f => f.BookingId.HasValue).Select(f => f.BookingId!.Value).Distinct().ToList();
+
+        var patients = await _db.Patients.AsNoTracking()
+            .Where(p => patientIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        var bookings = await _db.Bookings.AsNoTracking()
+            .Where(b => bookingIds.Contains(b.Id))
+            .ToListAsync(ct);
+
+        var doctors = await _db.Doctors.AsNoTracking()
+            .Where(d => bookings.Select(b => b.DoctorId).Contains(d.Id))
+            .ToDictionaryAsync(d => d.Id, ct);
+
+        var result = rows.Select(f =>
+        {
+            var patient = f.PatientId != Guid.Empty && patients.TryGetValue(f.PatientId, out var p) ? p : null;
+            var booking = f.BookingId.HasValue ? bookings.FirstOrDefault(b => b.Id == f.BookingId.Value) : null;
+            var doctor = booking is not null && doctors.TryGetValue(booking.DoctorId, out var d) ? d : null;
+
+            return new PendingFollowUpRow
             {
-                Patient = f.Consultation != null && f.Consultation.Booking != null && f.Consultation.Booking.Patient != null
-                    ? f.Consultation.Booking.Patient.FirstName + " " + f.Consultation.Booking.Patient.LastName
-                    : "Unknown",
-                Doctor = f.Consultation != null && f.Consultation.Booking != null && f.Consultation.Booking.Doctor != null
-                    ? f.Consultation.Booking.Doctor.FullName
-                    : "Unknown",
+                Patient = patient is not null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                Doctor = doctor?.FullName ?? "Unknown",
                 FollowUpDate = f.FollowUpDate.ToString(),
                 Reason = f.Reason ?? "",
                 Status = f.Status
-            })
-            .ToListAsync(ct);
+            };
+        }).ToList();
 
-        return Ok(rows);
+        return Ok(result);
     }
 
     [HttpGet("daily-booking-summary")]

@@ -1,4 +1,4 @@
-namespace ClinicApp.Domain.Entities;
+namespace ClinicApp.Domain.Entities.Clinic;
 
 public sealed class StaffInvite
 {

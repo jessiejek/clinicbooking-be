@@ -2,7 +2,7 @@ using System.Net;
 using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Features.Staff.Dtos;
-using ClinicApp.Domain.Entities;
+using ClinicApp.Domain.Entities.Clinic;
 using ClinicApp.Infrastructure.Identity;
 using ClinicApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
