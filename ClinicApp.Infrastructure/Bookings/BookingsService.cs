@@ -1373,7 +1373,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             todaysAppointments);
     }
 
-    public async Task<PaymentDto> GetPaymentByBookingAsync(Guid bookingId, CancellationToken cancellationToken)
+    public async Task<PaymentDto> GetPaymentByBookingAsync(Guid bookingId, ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var payment = await _dbContext.Payments
             .AsNoTracking()
@@ -1382,6 +1382,25 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         if (payment is null)
         {
             throw new ApiException(HttpStatusCode.NotFound, "Payment was not found.");
+        }
+
+        if (principal.IsInRole("Patient"))
+        {
+            var booking = await _dbContext.Bookings
+                .AsNoTracking()
+                .Include(x => x.Patient)
+                .SingleOrDefaultAsync(x => x.Id == bookingId, cancellationToken);
+
+            if (booking is null)
+            {
+                throw new ApiException(HttpStatusCode.NotFound, "Booking was not found.");
+            }
+
+            var currentPatient = await GetCurrentPatientAsync(principal, cancellationToken);
+            if (booking.PatientId != currentPatient.Id)
+            {
+                throw new ApiException(HttpStatusCode.Forbidden, "You do not have access to this payment.");
+            }
         }
 
         return Map(payment);
@@ -1470,9 +1489,24 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         }
     }
 
-    public async Task<ReceiptDto> GetReceiptAsync(Guid paymentId, CancellationToken cancellationToken)
+    public async Task<ReceiptDto> GetReceiptAsync(Guid paymentId, ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var payment = await LoadPaymentWithBookingAsync(paymentId, cancellationToken);
+
+        if (principal.IsInRole("Patient"))
+        {
+            if (payment.Booking is null)
+            {
+                throw new ApiException(HttpStatusCode.NotFound, "Linked booking was not found.");
+            }
+
+            var currentPatient = await GetCurrentPatientAsync(principal, cancellationToken);
+            if (payment.Booking.PatientId != currentPatient.Id)
+            {
+                throw new ApiException(HttpStatusCode.Forbidden, "You do not have access to this receipt.");
+            }
+        }
+
         return await BuildReceiptAsync(payment, cancellationToken);
     }
 

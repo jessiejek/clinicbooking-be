@@ -16,11 +16,11 @@ public sealed class PaymentsController : ControllerBase
         _paymentsService = paymentsService;
     }
 
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Patient")]
     [HttpGet("booking/{bookingId:guid}")]
     public async Task<ActionResult<PaymentDto>> GetByBooking(Guid bookingId, CancellationToken cancellationToken)
     {
-        var payment = await _paymentsService.GetPaymentByBookingAsync(bookingId, cancellationToken);
+        var payment = await _paymentsService.GetPaymentByBookingAsync(bookingId, User, cancellationToken);
         return Ok(payment);
     }
 
@@ -35,11 +35,11 @@ public sealed class PaymentsController : ControllerBase
         return Ok(receipt);
     }
 
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Patient")]
     [HttpGet("{id:guid}/receipt")]
     public async Task<ActionResult<ReceiptDto>> GetReceipt(Guid id, CancellationToken cancellationToken)
     {
-        var receipt = await _paymentsService.GetReceiptAsync(id, cancellationToken);
+        var receipt = await _paymentsService.GetReceiptAsync(id, User, cancellationToken);
         return Ok(receipt);
     }
 

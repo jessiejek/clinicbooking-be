@@ -41,4 +41,9 @@ public interface IClinicDoctorsService
     Task<DoctorDayStatusDto> UpsertDayStatusAsync(Guid doctorId, SetDayStatusDto dto, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<AvailableSlotDto>> GetAvailableSlotsAsync(Guid doctorId, DateOnly date, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the doctor's ProfilePhotoUrl with the given photo URL.
+    /// </summary>
+    Task SetDoctorPhotoUrlAsync(Guid doctorId, string photoUrl, CancellationToken cancellationToken);
 }

@@ -12,10 +12,12 @@ namespace ClinicApp.API.Controllers;
 public sealed class DoctorsController : ControllerBase
 {
     private readonly IClinicDoctorsService _doctorsService;
+    private readonly IFileUploadService _fileUploadService;
 
-    public DoctorsController(IClinicDoctorsService doctorsService)
+    public DoctorsController(IClinicDoctorsService doctorsService, IFileUploadService fileUploadService)
     {
         _doctorsService = doctorsService;
+        _fileUploadService = fileUploadService;
     }
 
     [AllowAnonymous]
@@ -190,5 +192,40 @@ public sealed class DoctorsController : ControllerBase
 
         var slots = await _doctorsService.GetAvailableSlotsAsync(id, date, cancellationToken);
         return Ok(slots);
+    }
+
+    /// <summary>
+    /// Uploads a profile photo for the specified doctor.
+    /// Accepts multipart form data. Validates image type (jpg, png, gif, webp) and max size (5 MB).
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:guid}/photo")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<object>> UploadPhoto(Guid id, IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            throw new ApiException(System.Net.HttpStatusCode.BadRequest, "No file provided.");
+        }
+
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            throw new ApiException(System.Net.HttpStatusCode.BadRequest, "File size must not exceed 5 MB.");
+        }
+
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        if (extension is null || !allowedExtensions.Contains(extension))
+        {
+            throw new ApiException(System.Net.HttpStatusCode.BadRequest, "Only image files (jpg, png, gif, webp) are allowed.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativePath = await _fileUploadService.UploadAsync(stream, file.FileName, "doctor-photos", cancellationToken);
+        var photoUrl = _fileUploadService.GetFileUrl(relativePath);
+
+        await _doctorsService.SetDoctorPhotoUrlAsync(id, photoUrl, cancellationToken);
+
+        return Ok(new { profilePhotoUrl = photoUrl });
     }
 }

@@ -331,6 +331,19 @@ public sealed class DoctorsService : IClinicDoctorsService
         return await UpdateDoctorAsync(doctor.Id, dto, cancellationToken);
     }
 
+    public async Task SetDoctorPhotoUrlAsync(Guid doctorId, string photoUrl, CancellationToken cancellationToken)
+    {
+        var doctor = await _dbContext.Doctors.SingleOrDefaultAsync(x => x.Id == doctorId, cancellationToken);
+        if (doctor is null)
+        {
+            throw new ApiException(HttpStatusCode.NotFound, "Doctor was not found.");
+        }
+
+        doctor.ProfilePhotoUrl = photoUrl;
+        doctor.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task DeleteDoctorAsync(Guid id, CancellationToken cancellationToken)
     {
         var doctor = await _dbContext.Doctors.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
