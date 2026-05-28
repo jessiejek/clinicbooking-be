@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using ClinicApp.Application.Common.Exceptions;
 using ClinicApp.Application.Common.Interfaces.Authentication;
@@ -246,30 +247,71 @@ public sealed class AuthService : IAuthService
             return;
         }
 
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        // In a production system, email the token to the user.
-        // For now, the front-end reset-password page reads it from the query string.
-        // The token is available in the user manager for the reset endpoint.
-        _ = token;
+        // Generate a secure random reset token
+        var resetToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
+        // Store in RefreshTokens table with a flag: no UserId constraint check since this is a reset
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            Token = resetToken,
+            UserId = user.Id,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            CreatedByIp = null
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // In production, email the token to the user.
+        // The front-end reset-password page reads it from the query string (?token=...).
+        _ = resetToken;
     }
 
     public async Task ResetPasswordAsync(ResetPasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user is null)
+        var storedToken = await _dbContext.RefreshTokens
+            .FirstOrDefaultAsync(x => x.Token == request.Token && x.ExpiresAt > DateTime.UtcNow && x.RevokedAt == null, cancellationToken);
+
+        if (storedToken is null)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Invalid or expired password reset token.");
+        }
+
+        var user = await _userManager.FindByIdAsync(storedToken.UserId);
+        if (user is null || !user.IsActive)
         {
             throw new ApiException(HttpStatusCode.BadRequest, "Invalid password reset request.");
         }
 
-        var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
-        if (!result.Succeeded)
+        // Verify the token belongs to the requested email
+        if (!string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase))
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            throw new ApiException(HttpStatusCode.BadRequest, $"Password reset failed: {errors}");
+            throw new ApiException(HttpStatusCode.BadRequest, "Invalid password reset request.");
         }
 
+        // Remove existing password and set new one
+        var removeResult = await _userManager.RemovePasswordAsync(user);
+        if (!removeResult.Succeeded)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest,
+                $"Password reset failed: {string.Join("; ", removeResult.Errors.Select(e => e.Description))}");
+        }
+
+        var addResult = await _userManager.AddPasswordAsync(user, request.NewPassword);
+        if (!addResult.Succeeded)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest,
+                $"Password reset failed: {string.Join("; ", addResult.Errors.Select(e => e.Description))}");
+        }
+
+        // Revoke the reset token so it cannot be reused
+        storedToken.RevokedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken)
