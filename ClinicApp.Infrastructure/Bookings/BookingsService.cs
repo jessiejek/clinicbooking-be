@@ -1266,6 +1266,34 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         return bookings.Select(MapSummary).ToList();
     }
 
+    public async Task<BookingPublicSummaryDto> GetPublicBookingSummaryAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var booking = await _dbContext.Bookings
+            .AsNoTracking()
+            .Include(x => x.Patient)
+            .Include(x => x.Doctor)
+            .Include(x => x.Service)
+            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (booking is null)
+        {
+            throw new ApiException(HttpStatusCode.NotFound, "Booking was not found.");
+        }
+
+        return new BookingPublicSummaryDto(
+            Id: booking.Id,
+            PatientName: BuildPatientName(booking.Patient, booking.PatientId),
+            DoctorName: BuildDoctorName(booking.Doctor, booking.DoctorId),
+            ServiceName: BuildServiceName(booking.Service, booking.ServiceId),
+            AppointmentDate: booking.AppointmentDate,
+            SlotStartTime: booking.SlotStartTime,
+            SlotEndTime: booking.SlotEndTime,
+            QueueNumber: booking.QueueNumber,
+            Status: booking.Status,
+            PaymentStatus: booking.PaymentStatus,
+            TotalFee: booking.TotalFee);
+    }
+
     public async Task<AdminDashboardSummaryDto> GetAdminDashboardSummaryAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);

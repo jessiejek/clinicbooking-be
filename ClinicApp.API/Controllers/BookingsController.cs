@@ -54,6 +54,14 @@ public sealed class BookingsController : ControllerBase
         return Ok(booking);
     }
 
+    [AllowAnonymous]
+    [HttpGet("{id:guid}/public-summary")]
+    public async Task<ActionResult<BookingPublicSummaryDto>> GetPublicSummary(Guid id, CancellationToken cancellationToken)
+    {
+        var summary = await _bookingsService.GetPublicBookingSummaryAsync(id, cancellationToken);
+        return Ok(summary);
+    }
+
     [Authorize(Roles = "Admin,Staff")]
     [HttpPatch("{id:guid}/check-in")]
     public async Task<ActionResult<BookingDetailDto>> CheckIn(

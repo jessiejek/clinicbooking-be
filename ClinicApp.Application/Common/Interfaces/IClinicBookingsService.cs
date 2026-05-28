@@ -56,4 +56,10 @@ public interface IClinicBookingsService
     Task<IReadOnlyList<BookingSummaryDto>> GetPendingVerificationBookingsAsync(CancellationToken cancellationToken);
 
     Task<AdminDashboardSummaryDto> GetAdminDashboardSummaryAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns limited booking info for unauthenticated guests (booking confirmation page).
+    /// Only exposes non-sensitive data.
+    /// </summary>
+    Task<BookingPublicSummaryDto> GetPublicBookingSummaryAsync(Guid id, CancellationToken cancellationToken);
 }

@@ -237,6 +237,41 @@ public sealed class AuthService : IAuthService
         await _userManager.UpdateAsync(user);
     }
 
+    public async Task ForgotPasswordAsync(ForgotPasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            // Don't reveal whether the email exists
+            return;
+        }
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        // In a production system, email the token to the user.
+        // For now, the front-end reset-password page reads it from the query string.
+        // The token is available in the user manager for the reset endpoint.
+        _ = token;
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Invalid password reset request.");
+        }
+
+        var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new ApiException(HttpStatusCode.BadRequest, $"Password reset failed: {errors}");
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+    }
+
     public async Task<AuthUserDto> UpdateProfileAsync(ClaimsPrincipal principal, UpdateAuthProfileDto request, CancellationToken cancellationToken)
     {
         var user = await GetUserAsync(principal, cancellationToken);

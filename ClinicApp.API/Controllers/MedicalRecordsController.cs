@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ClinicApp.API.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,Doctor,Patient")]
+[Authorize(Roles = "Admin,Doctor,Patient,Staff")]
 [Route("api/medical-records")]
 public sealed class MedicalRecordsController : ControllerBase
 {
