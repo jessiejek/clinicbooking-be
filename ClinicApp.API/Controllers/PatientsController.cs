@@ -23,7 +23,7 @@ public sealed class PatientsController : ControllerBase
         _clinicalHistoryService = clinicalHistoryService;
     }
 
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Doctor")]
     [HttpGet]
     public async Task<ActionResult<PagedResult<PatientSummaryDto>>> GetPatients(
         [FromQuery] int page = 1,

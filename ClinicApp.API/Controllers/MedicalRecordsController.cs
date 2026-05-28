@@ -21,7 +21,9 @@ public sealed class MedicalRecordsController : ControllerBase
     //  Group A — Queries by patientId
     // ═══════════════════════════════════════════════
 
+    // Support both /api/medical-records/consultations AND /api/patients/{patientId}/medical-records
     [HttpGet("consultations")]
+    [HttpGet("/api/patients/{patientId}/medical-records")]
     public async Task<ActionResult<List<ConsultationDto>>> GetConsultations(
         [FromQuery] Guid? patientId,
         CancellationToken ct)
@@ -276,5 +278,35 @@ public sealed class MedicalRecordsController : ControllerBase
     {
         await _records.DeleteFollowUpAsync(id, ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Composite endpoint: returns all medical records for a patient (consultations, prescriptions, allergies, labs, etc.)
+    /// Frontend calls GET /api/patients/{patientId}/medical-records
+    /// </summary>
+    [HttpGet("/api/patients/{patientId:guid}/medical-records")]
+    public async Task<ActionResult<object>> GetPatientMedicalRecords(
+        Guid patientId,
+        CancellationToken ct)
+    {
+        // Run queries sequentially to avoid DbContext concurrency issues
+        var consultations = await _records.GetConsultationsByPatientAsync(patientId, ct);
+        var prescriptions = await _records.GetPrescriptionsByPatientAsync(patientId, ct);
+        var allergies = await _records.GetAllergiesByPatientAsync(patientId, ct);
+        var labRequests = await _records.GetLabOrdersByPatientAsync(patientId, ct);
+        var labResults = await _records.GetLabResultsByPatientAsync(patientId, ct);
+        var vaccinations = await _records.GetVaccinationsByPatientAsync(patientId, ct);
+
+        return Ok(new
+        {
+            consultations,
+            prescriptions,
+            allergies,
+            labRequests,
+            labResults,
+            vaccinations,
+            diagnoses = new List<object>(),
+            vitalSigns = new List<object>()
+        });
     }
 }

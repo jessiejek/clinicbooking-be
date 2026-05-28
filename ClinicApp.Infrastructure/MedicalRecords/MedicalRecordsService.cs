@@ -350,6 +350,7 @@ public sealed class MedicalRecordsService : IMedicalRecordsService
         var diagnosis = new ConsultationDiagnosis
         {
             Id = Guid.NewGuid(),
+            PatientId = consultation.PatientId,
             ConsultationId = consultationId,
             DiagnosisText = dto.Description,
             DiagnosisCode = dto.Icd10Code,

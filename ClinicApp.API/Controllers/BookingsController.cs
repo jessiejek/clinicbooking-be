@@ -17,7 +17,7 @@ public sealed class BookingsController : ControllerBase
         _bookingsService = bookingsService;
     }
 
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Doctor")]
     [HttpGet]
     public async Task<ActionResult<PagedResult<BookingSummaryDto>>> GetBookings(
         [FromQuery] string? status = null,
