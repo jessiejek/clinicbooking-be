@@ -16,11 +16,13 @@ public sealed class UpdateDoctorDtoValidator : AbstractValidator<UpdateDoctorDto
     {
         RuleFor(x => x.FullName)
             .NotEmpty()
-            .MaximumLength(200);
+            .MaximumLength(200)
+            .When(x => x.FullName is not null);
 
         RuleFor(x => x.Specialization)
             .NotEmpty()
-            .MaximumLength(200);
+            .MaximumLength(200)
+            .When(x => x.Specialization is not null);
 
         RuleFor(x => x.Bio)
             .MaximumLength(4000)
@@ -39,13 +41,16 @@ public sealed class UpdateDoctorDtoValidator : AbstractValidator<UpdateDoctorDto
             .When(x => x.S2Number is not null);
 
         RuleFor(x => x.ConsultationFee)
-            .GreaterThanOrEqualTo(0);
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.ConsultationFee.HasValue);
 
         RuleFor(x => x.SlotDurationMinutes)
-            .GreaterThan(0);
+            .GreaterThan(0)
+            .When(x => x.SlotDurationMinutes.HasValue);
 
         RuleFor(x => x.SlotCapacity)
-            .GreaterThan(0);
+            .GreaterThan(0)
+            .When(x => x.SlotCapacity.HasValue);
 
         RuleFor(x => x.DailyPatientLimit)
             .GreaterThan(0)

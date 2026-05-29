@@ -47,3 +47,5 @@ coverage/
 
 # Zip files
 *.zip
+# Build output tmp
+out_tmp/

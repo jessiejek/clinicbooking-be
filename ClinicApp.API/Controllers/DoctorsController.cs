@@ -62,7 +62,7 @@ public sealed class DoctorsController : ControllerBase
         return Ok(doctor);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Doctor")]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<DoctorDetailDto>> Update(
         Guid id,

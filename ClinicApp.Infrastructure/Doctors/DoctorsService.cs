@@ -869,16 +869,26 @@ public sealed class DoctorsService : IClinicDoctorsService
 
     private static void ApplyDoctorUpdates(Doctor doctor, UpdateDoctorDto dto)
     {
-        doctor.FullName = dto.FullName.Trim();
-        doctor.Specialization = dto.Specialization.Trim();
-        doctor.Bio = TrimOrNull(dto.Bio);
-        doctor.LicenseNumber = TrimOrNull(dto.LicenseNumber);
-        doctor.PtrNumber = TrimOrNull(dto.PtrNumber);
-        doctor.S2Number = TrimOrNull(dto.S2Number);
-        doctor.ConsultationFee = dto.ConsultationFee;
-        doctor.SlotDurationMinutes = dto.SlotDurationMinutes;
-        doctor.SlotCapacity = dto.SlotCapacity;
-        doctor.DailyPatientLimit = dto.DailyPatientLimit;
+        if (dto.FullName is not null)
+            doctor.FullName = dto.FullName.Trim();
+        if (dto.Specialization is not null)
+            doctor.Specialization = dto.Specialization.Trim();
+        if (dto.Bio is not null)
+            doctor.Bio = TrimOrNull(dto.Bio);
+        if (dto.LicenseNumber is not null)
+            doctor.LicenseNumber = TrimOrNull(dto.LicenseNumber);
+        if (dto.PtrNumber is not null)
+            doctor.PtrNumber = TrimOrNull(dto.PtrNumber);
+        if (dto.S2Number is not null)
+            doctor.S2Number = TrimOrNull(dto.S2Number);
+        if (dto.ConsultationFee.HasValue)
+            doctor.ConsultationFee = dto.ConsultationFee.Value;
+        if (dto.SlotDurationMinutes.HasValue)
+            doctor.SlotDurationMinutes = dto.SlotDurationMinutes.Value;
+        if (dto.SlotCapacity.HasValue)
+            doctor.SlotCapacity = dto.SlotCapacity.Value;
+        if (dto.DailyPatientLimit.HasValue)
+            doctor.DailyPatientLimit = dto.DailyPatientLimit;
 
         if (!string.IsNullOrWhiteSpace(dto.Status))
         {

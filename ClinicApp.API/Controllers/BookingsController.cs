@@ -103,6 +103,7 @@ public sealed class BookingsController : ControllerBase
     }
 
     [Authorize(Roles = "Doctor")]
+    [HttpPut("{id:guid}/consultation-record")]
     [HttpPatch("{id:guid}/consultation-record")]
     public async Task<ActionResult<ConsultationRecordDto>> UpdateConsultationRecord(
         Guid id,
