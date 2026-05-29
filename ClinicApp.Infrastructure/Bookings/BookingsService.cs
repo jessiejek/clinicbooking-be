@@ -669,9 +669,9 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 throw new ApiException(HttpStatusCode.Forbidden, "You do not have access to this booking.");
             }
 
-            if (booking.Status != BookingStatusCompleted)
+            if (booking.Status != BookingStatusCompleted && booking.Status != BookingStatusCheckedIn && booking.Status != BookingStatusInProgress)
             {
-                throw new ApiException(HttpStatusCode.BadRequest, "Only completed consultations can be amended.");
+                throw new ApiException(HttpStatusCode.BadRequest, "Only active or completed consultations can be amended.");
             }
 
             var now = DateTime.UtcNow;
