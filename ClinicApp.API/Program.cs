@@ -38,6 +38,14 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowCredentials();
     });
+
+    options.AddPolicy("Production", policy =>
+    {
+        policy.WithOrigins("https://app.yourclinic.com")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
 });
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IClinicRealtimeNotifier, ClinicRealtimeNotifier>();
@@ -90,7 +98,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-app.UseCors("LocalDev");
+app.UseCors(app.Environment.IsDevelopment() ? "LocalDev" : "Production");
 app.UseStaticFiles();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

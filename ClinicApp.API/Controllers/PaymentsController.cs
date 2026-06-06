@@ -43,7 +43,7 @@ public sealed class PaymentsController : ControllerBase
         return Ok(receipt);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Doctor")]
     [HttpPatch("{id:guid}/waive")]
     public async Task<ActionResult<PaymentDto>> Waive(
         Guid id,

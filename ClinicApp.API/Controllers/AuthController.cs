@@ -1,5 +1,6 @@
 using ClinicApp.Application.Common.Interfaces.Authentication;
 using ClinicApp.Application.Common.Exceptions;
+using ClinicApp.Application.Common.Interfaces;
 using ClinicApp.Application.Features.Auth.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,12 @@ namespace ClinicApp.API.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IFileUploadService _fileUploadService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IFileUploadService fileUploadService)
     {
         _authService = authService;
+        _fileUploadService = fileUploadService;
     }
 
     [AllowAnonymous]
@@ -135,6 +138,41 @@ public sealed class AuthController : ControllerBase
     {
         await _authService.SetPasswordAsync(User, request, cancellationToken);
         return NoContent();
+    }
+
+    [Authorize]
+    [HttpPost("avatar")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<object>> UploadAvatar(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "No file provided.");
+        }
+
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "File size must not exceed 5 MB.");
+        }
+
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        if (extension is null || !allowedExtensions.Contains(extension))
+        {
+            throw new ApiException(HttpStatusCode.BadRequest, "Only JPG, PNG, GIF, and WebP images are allowed.");
+        }
+
+        await using var stream = file.OpenReadStream();
+        var relativePath = await _fileUploadService.UploadAsync(stream, file.FileName, "avatars", cancellationToken);
+        var photoUrl = _fileUploadService.GetFileUrl(relativePath);
+
+        var result = await _authService.UpdateProfileAsync(User, new UpdateAuthProfileDto(
+            FullName: null,
+            AvatarUrl: photoUrl,
+            PhoneNumber: null
+        ), cancellationToken);
+
+        return Ok(new { avatarUrl = result.AvatarUrl });
     }
 
     private string? GetClientIp()
