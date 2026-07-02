@@ -1883,10 +1883,16 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 x.MedicineName,
                 x.Strength,
                 x.DosageForm,
+                x.Dose,
                 x.Route,
+                x.RouteDescription,
                 x.Frequency,
+                x.FrequencyCode,
                 x.Duration,
                 x.Quantity,
+                x.UnitOfMeasure,
+                x.UnitOfMeasureDescription,
+                x.Sig,
                 x.Instructions))
             .ToListAsync(cancellationToken);
 
@@ -1913,10 +1919,16 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 item.MedicineName,
                 item.Strength,
                 null,
+                item.Dose,
                 item.Route,
+                item.RouteDescription,
                 item.Frequency,
+                item.FrequencyCode,
                 item.Duration,
                 item.Quantity.ToString(),
+                item.UnitOfMeasure,
+                item.UnitOfMeasureDescription,
+                item.Sig,
                 item.Instructions)).ToList();
 
             return new ConsultationRecordPrescriptionDto(booking.Id, booking.Notes, mappedItems);
@@ -2280,11 +2292,20 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 MedicineName = item.MedicationName,
                 Strength = item.Strength,
                 DosageForm = item.DosageForm,
+                Dose = item.Dose,
                 Route = item.Route,
+                RouteDescription = item.RouteDescription,
                 Frequency = item.Frequency,
+                FrequencyCode = item.FrequencyCode,
                 Duration = item.Duration,
                 Quantity = item.Quantity,
+                UnitOfMeasure = item.UnitOfMeasure,
+                UnitOfMeasureDescription = item.UnitOfMeasureDescription,
+                Sig = item.Sig,
                 Instructions = item.Instructions,
+                IsControlledSubstance = item.IsControlledSubstance,
+                BrandName = item.BrandName,
+                GenericName = item.GenericName,
                 CreatedAt = now
             });
         }
@@ -2516,7 +2537,7 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 GenericName: item.GenericName,
                 DosageForm: item.DosageForm,
                 Strength: item.Strength,
-                Sig: item.Instructions,
+                Sig: item.Sig ?? item.Instructions,
                 Quantity: item.LegacyQuantity,
                 Frequency: item.Frequency,
                 Duration: item.Duration,
@@ -2527,7 +2548,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 UnitOfMeasure: item.UnitOfMeasure,
                 UnitOfMeasureDescription: item.UnitOfMeasureDescription,
                 BrandName: item.BrandName,
-                FrequencyCode: item.FrequencyCode))
+                FrequencyCode: item.FrequencyCode,
+                Dose: item.Dose))
             .ToList();
     }
 
@@ -2549,11 +2571,13 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                     GenericName: null,
                     DosageForm: null,
                     IsControlledSubstance: false,
-                    RouteDescription: null,
-                    UnitOfMeasure: null,
-                    UnitOfMeasureDescription: null,
+                    RouteDescription: TrimOrNull(item.RouteDescription),
+                    UnitOfMeasure: TrimOrNull(item.UnitOfMeasure),
+                    UnitOfMeasureDescription: TrimOrNull(item.UnitOfMeasureDescription),
                     BrandName: null,
-                    FrequencyCode: null,
+                    FrequencyCode: TrimOrNull(item.FrequencyCode),
+                    Dose: TrimOrNull(item.Dose),
+                    Sig: TrimOrNull(item.Sig),
                     LegacyQuantity: ParsePrescriptionQuantity(item.Quantity)))
                 .ToList()
                 ?? [];
@@ -2578,6 +2602,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 UnitOfMeasureDescription: TrimOrNull(item.UnitOfMeasureDescription),
                 BrandName: TrimOrNull(item.BrandName),
                 FrequencyCode: TrimOrNull(item.FrequencyCode),
+                Dose: null,
+                Sig: TrimOrNull(item.Sig),
                 LegacyQuantity: item.Quantity))
             .ToList()
             ?? [];
@@ -2700,6 +2726,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
         string? UnitOfMeasureDescription,
         string? BrandName,
         string? FrequencyCode,
+        string? Dose,
+        string? Sig,
         int LegacyQuantity);
 
     private sealed record ResolvedDiagnosis(

@@ -52,10 +52,16 @@ public sealed record DoctorCompletePrescriptionLineItemDto(
     string? MedicationName,
     string? Strength,
     string? Dosage,
+    string? Dose,
     string? Route,
+    string? RouteDescription,
     string? Frequency,
+    string? FrequencyCode,
     string? Duration,
     string? Quantity,
+    string? UnitOfMeasure,
+    string? UnitOfMeasureDescription,
+    string? Sig,
     string? Instructions);
 
 public sealed record DoctorCompleteLabOrderDto(

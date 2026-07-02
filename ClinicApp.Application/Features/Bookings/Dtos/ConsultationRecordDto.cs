@@ -31,10 +31,16 @@ public sealed record ConsultationRecordPrescriptionItemDto(
     string MedicineName,
     string? Strength,
     string? DosageForm,
+    string? Dose,
     string? Route,
+    string? RouteDescription,
     string? Frequency,
+    string? FrequencyCode,
     string? Duration,
     string? Quantity,
+    string? UnitOfMeasure,
+    string? UnitOfMeasureDescription,
+    string? Sig,
     string? Instructions);
 
 public sealed record ConsultationRecordLabOrderDto(

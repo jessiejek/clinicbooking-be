@@ -17,4 +17,5 @@ public sealed record PatientPrescriptionItemDto(
     string? UnitOfMeasure,
     string? UnitOfMeasureDescription,
     string? BrandName,
-    string? FrequencyCode);
+    string? FrequencyCode,
+    string? Dose);
