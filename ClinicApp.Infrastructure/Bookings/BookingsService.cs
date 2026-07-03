@@ -571,6 +571,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
                 booking.FinalAmount = 0m;
                 booking.TotalFee = 0m;
+                booking.ConsultationFeeSnapshot = 0m;
+                booking.ServiceFeeSnapshot = 0m;
                 booking.PaymentStatus = PaymentStatusWaived;
                 booking.IsProfessionalFeeWaived = true;
                 booking.ProfessionalFeeWaivedReason = dto.ProfessionalFeeWaivedReason?.Trim();
@@ -596,6 +598,8 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
 
                 booking.FinalAmount = finalAmount;
                 booking.TotalFee = finalAmount;
+                booking.ConsultationFeeSnapshot = Math.Min(doctor.ConsultationFee, finalAmount);
+                booking.ServiceFeeSnapshot = Math.Max(finalAmount - doctor.ConsultationFee, 0m);
                 booking.PaymentStatus = PaymentStatusUnpaid;
                 booking.IsProfessionalFeeWaived = false;
                 booking.ProfessionalFeeWaivedReason = null;
