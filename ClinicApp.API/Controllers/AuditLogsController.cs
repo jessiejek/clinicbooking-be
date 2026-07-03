@@ -27,8 +27,11 @@ public sealed class AuditLogsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateAuditLogRequest request, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
-        await _auditLogService.LogAsync(request.EntityType, request.EntityId, request.Action, userId, request.Details, ct);
+        var performedBy = User.FindFirstValue("fullName")
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? "unknown";
+        await _auditLogService.LogAsync(request.EntityType, request.EntityId, request.Action, performedBy, request.Details, ct);
         return NoContent();
     }
 }
