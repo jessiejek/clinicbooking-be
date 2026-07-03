@@ -43,6 +43,11 @@ public sealed class ReviewsController : ControllerBase
         if (patient is null)
             return BadRequest("Patient profile not found");
 
+        var alreadyReviewed = await _db.Reviews.AsNoTracking()
+            .AnyAsync(r => r.BookingId == request.BookingId && r.PatientId == patient.Id, ct);
+        if (alreadyReviewed)
+            return BadRequest("This booking has already been reviewed.");
+
         var review = await _reviewService.CreateReviewAsync(request.DoctorId, patient.Id, request.BookingId, request.Rating, request.Comment, ct);
         return Ok(review);
     }
