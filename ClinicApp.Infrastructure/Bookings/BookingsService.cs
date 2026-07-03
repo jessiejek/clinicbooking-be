@@ -233,9 +233,20 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
             var doctor = await LoadActiveDoctorAsync(dto.DoctorId, cancellationToken);
             var service = await LoadActiveServiceForDoctorAsync(dto.DoctorId, dto.ServiceId, cancellationToken);
             var today = GetPhilippineToday();
+            var appointmentDate = dto.AppointmentDate ?? today;
 
-            var slot = await AssignWalkInSlotAsync(doctor, today, cancellationToken);
-            await EnsureDailyLimitNotReachedAsync(doctor.Id, today, doctor.DailyPatientLimit, cancellationToken);
+            (TimeOnly Start, TimeOnly End) slot;
+            if (dto.SlotStartTime.HasValue && dto.SlotEndTime.HasValue)
+            {
+                await EnsureSlotBookableAsync(doctor, appointmentDate, dto.SlotStartTime.Value, dto.SlotEndTime.Value, cancellationToken);
+                slot = (dto.SlotStartTime.Value, dto.SlotEndTime.Value);
+            }
+            else
+            {
+                slot = await AssignWalkInSlotAsync(doctor, appointmentDate, cancellationToken);
+            }
+
+            await EnsureDailyLimitNotReachedAsync(doctor.Id, appointmentDate, doctor.DailyPatientLimit, cancellationToken);
 
             var now = DateTime.UtcNow;
             var booking = new Booking
@@ -244,13 +255,13 @@ public sealed class BookingsService : IClinicBookingsService, IClinicPaymentsSer
                 PatientId = patient.Id,
                 DoctorId = doctor.Id,
                 ServiceId = service.Id,
-                AppointmentDate = today,
+                AppointmentDate = appointmentDate,
                 SlotStartTime = slot.Start,
                 SlotEndTime = slot.End,
                 Status = BookingStatusConfirmed,
                 PaymentStatus = PaymentStatusUnpaid,
                 PaymentMode = PaymentModePayAtClinic,
-                QueueNumber = await GenerateQueueNumberAsync(doctor.Id, today, cancellationToken),
+                QueueNumber = await GenerateQueueNumberAsync(doctor.Id, appointmentDate, cancellationToken),
                 TotalFee = 0m,
                 ConsultationFeeSnapshot = 0m,
                 ServiceFeeSnapshot = 0m,
